@@ -77,15 +77,20 @@ export function sessionEmail(c: Context): string | null {
   return data?.email ?? null
 }
 
+function cookieSecure(c: Context) {
+  const flag = env('COOKIE_SECURE').toLowerCase()
+  if (flag === 'true' || flag === '1') return true
+  if (flag === 'false' || flag === '0') return false
+  // auto: HTTPS of proxy (Caddy zet X-Forwarded-Proto)
+  return c.req.header('x-forwarded-proto') === 'https'
+}
+
 export function setSession(c: Context, email: string) {
-  const secure =
-    env('COOKIE_SECURE').toLowerCase() === 'true' ||
-    c.req.header('x-forwarded-proto') === 'https'
   setCookie(c, COOKIE, makeToken(email), {
     httpOnly: true,
     path: '/',
     sameSite: 'Lax',
-    secure,
+    secure: cookieSecure(c),
     maxAge: MAX_AGE_SEC,
   })
 }
