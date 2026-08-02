@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { FitText } from './FitText'
 
 function StepAccent({
   size,
@@ -81,21 +82,6 @@ export function FlightCaseLabel({
     fontWeight: 500,
     color: '#0a2540',
   }
-  const productValueStyle: CSSProperties = {
-    fontFamily: '"IBM Plex Sans", sans-serif',
-    fontSize: `${productValueSize}mm`,
-    fontWeight: 700,
-    color: '#0a2540',
-    lineHeight: 1.1,
-  }
-  const contentValueStyle: CSSProperties = {
-    fontFamily: '"IBM Plex Sans", sans-serif',
-    fontSize: `${contentValueSize}mm`,
-    fontWeight: 700,
-    color: '#0a2540',
-    lineHeight: 1.05,
-  }
-
   const bar = <div style={{ height: `${barH}mm`, background: '#0a0f1a', width: '100%' }} />
 
   return (
@@ -173,18 +159,19 @@ export function FlightCaseLabel({
         }}
       >
         <span style={fieldLabelStyle}>Product:</span>
-        <span
-          style={{
-            ...productValueStyle,
-            flex: 1,
-            minWidth: 0,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {label}
-        </span>
+        <FitText
+          text={label}
+          widthMm={widthMm - padX * 2 - widthMm * 0.18}
+          heightMm={productValueSize * 1.35}
+          maxMm={productValueSize}
+          minMm={Math.max(2, productValueSize * 0.4)}
+          maxLines={1}
+          fontWeight={700}
+          color="#0a2540"
+          fontFamily="'Helvetica Neue', Arial, sans-serif"
+          align="left"
+          style={{ flex: 1, minWidth: 0 }}
+        />
       </div>
 
       {bar}
@@ -201,16 +188,18 @@ export function FlightCaseLabel({
         }}
       >
         <span style={fieldLabelStyle}>Inhoud:</span>
-        <span
-          style={{
-            ...contentValueStyle,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {subtitle || ''}
-        </span>
+        <FitText
+          text={subtitle || ''}
+          widthMm={widthMm - padX * 2}
+          heightMm={Math.max(contentValueSize * 1.8, heightMm * 0.22)}
+          maxMm={contentValueSize}
+          minMm={Math.max(2.2, contentValueSize * 0.35)}
+          maxLines={2}
+          fontWeight={700}
+          color="#0a2540"
+          fontFamily="'Helvetica Neue', Arial, sans-serif"
+          align="left"
+        />
       </div>
 
       <div

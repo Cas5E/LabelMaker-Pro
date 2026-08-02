@@ -23,8 +23,9 @@ export function CableLabel({
   const repeats = heightMm >= 30 ? 4 : heightMm >= 22 ? 3 : heightMm >= 15 ? 2 : 1
   const slotH = heightMm / repeats
   const baseFont = Math.min(slotH * 0.75, barW * 0.6)
-  const shrink = len <= 2 ? 1 : len <= 3 ? 0.82 : len <= 4 ? 0.68 : 0.55
-  const fontSize = baseFont * shrink
+  const shrink =
+    len <= 2 ? 1 : len <= 3 ? 0.82 : len <= 4 ? 0.68 : len <= 5 ? 0.56 : len <= 6 ? 0.46 : 0.38
+  const fontSize = Math.max(2.2, baseFont * shrink)
   const logoRepeats = heightMm >= 30 ? 3 : heightMm >= 20 ? 2 : 1
   const logoMax = Math.max(4, heightMm / (logoRepeats + 0.5))
 

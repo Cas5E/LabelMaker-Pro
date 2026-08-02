@@ -62,6 +62,7 @@ db.exec(`
     qr_payload TEXT NOT NULL,
     qr_data_url TEXT,
     photo_data_url TEXT,
+    rentman_equipment_id INTEGER,
     width_mm REAL NOT NULL DEFAULT 200,
     height_mm REAL NOT NULL DEFAULT 70,
     created_at TEXT NOT NULL,
@@ -75,6 +76,9 @@ function migrate() {
   const names = new Set(cols.map((c) => c.name))
   if (!names.has('photo_data_url')) {
     db.exec(`ALTER TABLE bins ADD COLUMN photo_data_url TEXT`)
+  }
+  if (!names.has('rentman_equipment_id')) {
+    db.exec(`ALTER TABLE bins ADD COLUMN rentman_equipment_id INTEGER`)
   }
 }
 migrate()

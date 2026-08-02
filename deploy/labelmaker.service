@@ -1,0 +1,15 @@
+[Unit]
+Description=LabelMaker Pro
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/labelmaker-pro
+Environment=NODE_ENV=production
+Environment=PORT=3000
+ExecStart=/usr/bin/npx tsx server/index.ts
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

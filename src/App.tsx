@@ -31,6 +31,8 @@ import type {
   LabelKind,
   MeterColor,
   Preset,
+  RentmanEquipmentOption,
+  RentmanFolder,
 } from './lib/types'
 
 type Tab = 'labels' | 'bins' | 'colors' | 'company' | 'batches'
@@ -496,26 +498,36 @@ export default function App() {
                 <div>
                   <h2 className="panel-title">Magazijnbakken</h2>
                   <p className="mt-1 text-xs text-[var(--color-muted)]">
-                    Vul in → Opslaan → print. Foto en QR zijn optioneel.
+                    Importeer uit Rentman of vul handmatig in.
                   </p>
                 </div>
-                <button type="button" className="btn-primary btn-sm" onClick={() => void createBin()}>
-                  <Warehouse className="h-3.5 w-3.5" /> Nieuw
+                <button type="button" className="btn-ghost btn-sm" onClick={() => void createBin()}>
+                  <Warehouse className="h-3.5 w-3.5" /> Leeg
                 </button>
               </div>
+
+              <RentmanImportPanel
+                onImported={async (bin) => {
+                  await refresh()
+                  setBinQty(bin.id, Math.max(1, binBatch[bin.id] ?? 1))
+                  notify(`Geïmporteerd: ${bin.name || bin.code}`)
+                }}
+                onError={(msg) => notify(msg)}
+              />
+
               <div className="relative">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-muted)]" />
                 <input
                   className="field pl-8"
                   value={binQuery}
                   onChange={(e) => setBinQuery(e.target.value)}
-                  placeholder="Zoeken…"
+                  placeholder="Zoeken in bakken…"
                 />
               </div>
               <div className="space-y-3">
                 {filteredBins.length === 0 && (
                   <p className="text-sm text-[var(--color-muted)]">
-                    Nog geen bakken. Klik op <strong className="text-[var(--color-ink)]">Nieuw</strong>.
+                    Nog geen bakken. Kies een Rentman-product hierboven.
                   </p>
                 )}
                 {filteredBins.map((b) => (
@@ -1168,6 +1180,153 @@ function FieldLabel({ children }: { children: ReactNode }) {
     <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--color-muted)]">
       {children}
     </label>
+  )
+}
+
+function RentmanImportPanel({
+  onImported,
+  onError,
+}: {
+  onImported: (bin: Bin) => void | Promise<void>
+  onError: (msg: string) => void
+}) {
+  const [configured, setConfigured] = useState<boolean | null>(null)
+  const [folders, setFolders] = useState<RentmanFolder[]>([])
+  const [equipment, setEquipment] = useState<RentmanEquipmentOption[]>([])
+  const [folderId, setFolderId] = useState('')
+  const [equipmentId, setEquipmentId] = useState('')
+  const [loadingFolders, setLoadingFolders] = useState(false)
+  const [loadingEquipment, setLoadingEquipment] = useState(false)
+  const [importing, setImporting] = useState(false)
+
+  useEffect(() => {
+    api
+      .rentmanStatus()
+      .then((s) => setConfigured(s.configured))
+      .catch(() => setConfigured(false))
+  }, [])
+
+  useEffect(() => {
+    if (!configured) return
+    setLoadingFolders(true)
+    api
+      .rentmanFolders()
+      .then((list) => setFolders(list))
+      .catch((e: Error) => onError(e.message || 'Rentman folders laden mislukt'))
+      .finally(() => setLoadingFolders(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- onError is notify toast
+  }, [configured])
+
+  useEffect(() => {
+    if (!folderId) {
+      setEquipment([])
+      setEquipmentId('')
+      return
+    }
+    setLoadingEquipment(true)
+    setEquipmentId('')
+    api
+      .rentmanEquipment(Number(folderId))
+      .then((list) => setEquipment(list))
+      .catch((e: Error) => onError(e.message || 'Producten laden mislukt'))
+      .finally(() => setLoadingEquipment(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [folderId])
+
+  if (configured === false) {
+    return (
+      <div className="rounded-xl border border-dashed border-[var(--color-line)] p-3 text-xs text-[var(--color-muted)]">
+        Rentman niet gekoppeld. Zet <code className="text-[var(--color-accent)]">RENTMAN_API_KEY</code> in{' '}
+        <code className="text-[var(--color-accent)]">.env</code> en herstart de server.
+      </div>
+    )
+  }
+
+  if (configured === null) {
+    return (
+      <div className="text-xs text-[var(--color-muted)]">Rentman verbinden…</div>
+    )
+  }
+
+  const selected = equipment.find((e) => String(e.id) === equipmentId)
+
+  return (
+    <div className="space-y-2 rounded-xl border border-[var(--color-line)] bg-[rgba(24,35,56,0.55)] p-3">
+      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-accent)]">
+        Rentman import
+      </div>
+      <div>
+        <FieldLabel>Categorie</FieldLabel>
+        <select
+          className="field"
+          value={folderId}
+          disabled={loadingFolders}
+          onChange={(e) => setFolderId(e.target.value)}
+        >
+          <option value="">{loadingFolders ? 'Laden…' : 'Kies categorie…'}</option>
+          {folders.map((f) => (
+            <option key={f.id} value={f.id}>
+              {f.path}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <FieldLabel>Product</FieldLabel>
+        <select
+          className="field"
+          value={equipmentId}
+          disabled={!folderId || loadingEquipment}
+          onChange={(e) => setEquipmentId(e.target.value)}
+        >
+          <option value="">
+            {!folderId
+              ? 'Eerst categorie kiezen…'
+              : loadingEquipment
+                ? 'Laden…'
+                : equipment.length
+                  ? 'Kies product…'
+                  : 'Geen producten in deze map'}
+          </option>
+          {equipment.map((e) => (
+            <option key={e.id} value={e.id}>
+              {e.name}
+              {e.code ? ` (${e.code})` : ''}
+              {e.hasImage ? ' · foto' : ''}
+              {e.qr ? ` · QR ${e.qr}` : ''}
+            </option>
+          ))}
+        </select>
+      </div>
+      {selected && (
+        <p className="text-[11px] text-[var(--color-muted)]">
+          Code {selected.code || '—'}
+          {selected.qr ? ` · QR ${selected.qr}` : ''}
+          {selected.location ? ` · ${selected.location}` : ''}
+          {selected.hasImage ? ' · met foto' : ''}
+        </p>
+      )}
+      <button
+        type="button"
+        className="btn-primary w-full"
+        disabled={!equipmentId || importing}
+        onClick={() => {
+          void (async () => {
+            setImporting(true)
+            try {
+              const bin = await api.rentmanImport(Number(equipmentId))
+              await onImported(bin)
+            } catch (e) {
+              onError(e instanceof Error ? e.message : 'Import mislukt')
+            } finally {
+              setImporting(false)
+            }
+          })()
+        }}
+      >
+        {importing ? 'Importeren…' : 'Importeer als bak-label'}
+      </button>
+    </div>
   )
 }
 

@@ -89,29 +89,46 @@ textarea {
   body {
     background: #fff !important;
     color: #000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
-  body * {
-    visibility: hidden;
-  }
-
-  .print-only,
-  .print-only * {
-    visibility: visible;
+  /* Geen visibility-hack: die breekt grids/achtergronden in de print-preview */
+  .no-print {
+    display: none !important;
   }
 
   .print-only {
-    display: block;
-    position: absolute;
-    inset: 0;
+    display: block !important;
   }
 
   .print-page {
     box-shadow: none !important;
     margin: 0 !important;
+    break-after: page;
+    page-break-after: always;
   }
 
-  .no-print {
-    display: none !important;
+  .label-tile,
+  .label-tile *,
+  .bin-label,
+  .bin-label-qr,
+  .bin-label-accent {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  .bin-label {
+    outline: 0.35mm solid #0a0f1a !important;
+    outline-offset: -0.35mm !important;
+    border: none !important;
+  }
+
+  .bin-label-accent {
+    left: 0 !important;
+    top: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 }

@@ -33,7 +33,8 @@ export function PrintSheet({
         breakAfter: 'page',
       }}
     >
-      {showCutMarks && (
+      {/* Snijlijnen alleen voor kabel/flightcase — bij bakken verstoren ze de labelranden in print */}
+      {showCutMarks && page.kind !== 'bin' && (
         <div
           aria-hidden
           style={{

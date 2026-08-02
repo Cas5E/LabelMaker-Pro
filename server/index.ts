@@ -1,8 +1,19 @@
 import { serve } from '@hono/node-server'
+import { serveStatic } from '@hono/node-server/serve-static'
+import { existsSync } from 'node:fs'
+import { resolve, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import './env.ts'
 import { db, seedIfEmpty, uid } from './db.ts'
 import { makeQrDataUrl } from './qr.ts'
+import {
+  getEquipmentForLabel,
+  listEquipmentFolders,
+  listEquipmentInFolder,
+  rentmanConfigured,
+} from './rentman.ts'
 
 seedIfEmpty()
 
@@ -57,6 +68,8 @@ function mapBin(row: Row) {
     qrPayload: String(row.qr_payload ?? row.code),
     qrDataUrl: (row.qr_data_url as string | null) ?? null,
     photoDataUrl: (row.photo_data_url as string | null) ?? null,
+    rentmanEquipmentId:
+      row.rentman_equipment_id != null ? Number(row.rentman_equipment_id) : null,
     widthMm: Number(row.width_mm ?? 200),
     heightMm: Number(row.height_mm ?? 70),
     createdAt: String(row.created_at),
@@ -338,6 +351,7 @@ app.post('/api/bins', async (c) => {
     qrPayload?: string
     qrDataUrl?: string | null
     photoDataUrl?: string | null
+    rentmanEquipmentId?: number | null
     widthMm?: number
     heightMm?: number
   }>()
@@ -357,8 +371,8 @@ app.post('/api/bins', async (c) => {
 
   try {
     db.prepare(
-      `INSERT INTO bins (id, code, name, contents, location, qr_payload, qr_data_url, photo_data_url, width_mm, height_mm, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO bins (id, code, name, contents, location, qr_payload, qr_data_url, photo_data_url, rentman_equipment_id, width_mm, height_mm, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       id,
       code,
@@ -368,6 +382,7 @@ app.post('/api/bins', async (c) => {
       qrPayload,
       qrDataUrl,
       body.photoDataUrl ?? null,
+      body.rentmanEquipmentId ?? null,
       body.widthMm ?? 200,
       body.heightMm ?? 70,
       now,
@@ -415,11 +430,17 @@ app.patch('/api/bins/:id', async (c) => {
     qrDataUrl = await makeQrDataUrl(qrPayload)
   }
 
+  const rentmanEquipmentId =
+    body.rentmanEquipmentId !== undefined
+      ? (body.rentmanEquipmentId as number | null)
+      : ((cur.rentman_equipment_id as number | null) ?? null)
+
   try {
     db.prepare(
       `UPDATE bins SET
         code = ?, name = ?, contents = ?, location = ?,
         qr_payload = ?, qr_data_url = ?, photo_data_url = ?,
+        rentman_equipment_id = ?,
         width_mm = ?, height_mm = ?, updated_at = ?
        WHERE id = ?`,
     ).run(
@@ -430,6 +451,7 @@ app.patch('/api/bins/:id', async (c) => {
       qrPayload,
       qrDataUrl,
       photoDataUrl,
+      rentmanEquipmentId,
       body.widthMm !== undefined ? Number(body.widthMm) : cur.width_mm,
       body.heightMm !== undefined ? Number(body.heightMm) : cur.height_mm,
       new Date().toISOString(),
@@ -466,6 +488,135 @@ app.post('/api/qr', async (c) => {
   return c.json({ dataUrl })
 })
 
+app.get('/api/rentman/status', (c) =>
+  c.json({ configured: rentmanConfigured() }),
+)
+
+app.get('/api/rentman/folders', async (c) => {
+  try {
+    if (!rentmanConfigured()) return c.json({ error: 'RENTMAN_API_KEY ontbreekt in .env' }, 503)
+    const folders = await listEquipmentFolders()
+    return c.json(folders)
+  } catch (e) {
+    return c.json({ error: e instanceof Error ? e.message : 'Rentman fout' }, 502)
+  }
+})
+
+app.get('/api/rentman/equipment', async (c) => {
+  try {
+    if (!rentmanConfigured()) return c.json({ error: 'RENTMAN_API_KEY ontbreekt in .env' }, 503)
+    const folderId = Number(c.req.query('folderId'))
+    if (!folderId) return c.json({ error: 'folderId verplicht' }, 400)
+    const items = await listEquipmentInFolder(folderId)
+    return c.json(items)
+  } catch (e) {
+    return c.json({ error: e instanceof Error ? e.message : 'Rentman fout' }, 502)
+  }
+})
+
+/** Maak of update een bak vanuit een Rentman-product */
+app.post('/api/rentman/import', async (c) => {
+  try {
+    if (!rentmanConfigured()) return c.json({ error: 'RENTMAN_API_KEY ontbreekt in .env' }, 503)
+    const body = await c.req.json<{ equipmentId: number; binId?: string }>()
+    if (!body.equipmentId) return c.json({ error: 'equipmentId verplicht' }, 400)
+
+    const product = await getEquipmentForLabel(body.equipmentId)
+    const qrDataUrl = await makeQrDataUrl(product.qrPayload)
+    const now = new Date().toISOString()
+
+    // Bestaande bak met zelfde Rentman-id of handmatig gekozen binId updaten
+    const existing =
+      (body.binId
+        ? (db.prepare('SELECT * FROM bins WHERE id = ?').get(body.binId) as Row | undefined)
+        : undefined) ??
+      (db
+        .prepare('SELECT * FROM bins WHERE rentman_equipment_id = ?')
+        .get(product.rentmanId) as Row | undefined)
+
+    if (existing) {
+      db.prepare(
+        `UPDATE bins SET
+          code = ?, name = ?, contents = ?, location = ?,
+          qr_payload = ?, qr_data_url = ?, photo_data_url = COALESCE(?, photo_data_url),
+          rentman_equipment_id = ?, updated_at = ?
+         WHERE id = ?`,
+      ).run(
+        product.code,
+        product.name,
+        product.contents,
+        product.location || String(existing.location ?? ''),
+        product.qrPayload,
+        qrDataUrl,
+        product.photoDataUrl,
+        product.rentmanId,
+        now,
+        existing.id,
+      )
+      return c.json(mapBin(db.prepare('SELECT * FROM bins WHERE id = ?').get(existing.id) as Row))
+    }
+
+    const id = uid()
+    try {
+      db.prepare(
+        `INSERT INTO bins (id, code, name, contents, location, qr_payload, qr_data_url, photo_data_url, rentman_equipment_id, width_mm, height_mm, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 200, 70, ?, ?)`,
+      ).run(
+        id,
+        product.code,
+        product.name,
+        product.contents,
+        product.location,
+        product.qrPayload,
+        qrDataUrl,
+        product.photoDataUrl,
+        product.rentmanId,
+        now,
+        now,
+      )
+    } catch {
+      // Code-conflict: gebruik BAK-code i.p.v. Rentman-code
+      const fallback = nextBinCode()
+      db.prepare(
+        `INSERT INTO bins (id, code, name, contents, location, qr_payload, qr_data_url, photo_data_url, rentman_equipment_id, width_mm, height_mm, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 200, 70, ?, ?)`,
+      ).run(
+        id,
+        fallback,
+        product.name,
+        product.contents,
+        product.location,
+        product.qrPayload,
+        qrDataUrl,
+        product.photoDataUrl,
+        product.rentmanId,
+        now,
+        now,
+      )
+    }
+
+    return c.json(mapBin(db.prepare('SELECT * FROM bins WHERE id = ?').get(id) as Row), 201)
+  } catch (e) {
+    return c.json({ error: e instanceof Error ? e.message : 'Rentman fout' }, 502)
+  }
+})
+
+// Production: serve Vite build from ./dist (API blijft op /api/*)
+const distDir = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'dist')
+if (existsSync(distDir)) {
+  app.use(
+    '/*',
+    serveStatic({
+      root: './dist',
+      rewriteRequestPath: (p) => (p === '/' ? '/index.html' : p),
+    }),
+  )
+  app.get('*', serveStatic({ path: './dist/index.html' }))
+}
+
 const port = Number(process.env.PORT || 8787)
-console.log(`LabelMaker API → http://localhost:${port}`)
+console.log(`LabelMaker → http://localhost:${port}`)
+if (existsSync(distDir)) console.log(`Static UI: ${distDir}`)
+if (rentmanConfigured()) console.log('Rentman API: gekoppeld')
+else console.log('Rentman API: niet geconfigureerd (zet RENTMAN_API_KEY in .env)')
 serve({ fetch: app.fetch, port })

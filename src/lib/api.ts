@@ -1,4 +1,13 @@
-import type { AppState, BatchTemplate, Bin, MeterColor, Preset, Profile } from './types'
+import type {
+  AppState,
+  BatchTemplate,
+  Bin,
+  MeterColor,
+  Preset,
+  Profile,
+  RentmanEquipmentOption,
+  RentmanFolder,
+} from './types'
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -67,6 +76,19 @@ export const api = {
     req<{ dataUrl: string }>('/api/qr', {
       method: 'POST',
       body: JSON.stringify({ payload }),
+    }),
+
+  rentmanStatus: () => req<{ configured: boolean }>('/api/rentman/status'),
+
+  rentmanFolders: () => req<RentmanFolder[]>('/api/rentman/folders'),
+
+  rentmanEquipment: (folderId: number) =>
+    req<RentmanEquipmentOption[]>(`/api/rentman/equipment?folderId=${folderId}`),
+
+  rentmanImport: (equipmentId: number, binId?: string) =>
+    req<Bin>('/api/rentman/import', {
+      method: 'POST',
+      body: JSON.stringify({ equipmentId, binId }),
     }),
 }
 

@@ -57,10 +57,27 @@ export interface Bin {
   qrPayload: string
   qrDataUrl: string | null
   photoDataUrl: string | null
+  rentmanEquipmentId?: number | null
   widthMm: number
   heightMm: number
   createdAt: string
   updatedAt: string
+}
+
+export interface RentmanFolder {
+  id: number
+  name: string
+  path: string
+  parentId: number | null
+}
+
+export interface RentmanEquipmentOption {
+  id: number
+  name: string
+  code: string
+  hasImage: boolean
+  qr: string
+  location: string
 }
 
 export interface AppState {
