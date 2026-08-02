@@ -20,7 +20,7 @@ import { BinLabel } from './components/BinLabel'
 import { CableLabel } from './components/CableLabel'
 import { PreviewFrame } from './components/PreviewFrame'
 import { PrintSheet } from './components/PrintSheet'
-import { api, fileToDataUrl } from './lib/api'
+import { api, compressImageFile, fileToDataUrl } from './lib/api'
 import { SIZE_PRESETS } from './lib/defaults'
 import { capacityFor, paginateLabels } from './lib/layout'
 import type {
@@ -159,39 +159,54 @@ export default function App() {
   }
 
   const upsertMeterColor = async (label: string, color: string, textColor: string) => {
-    const meterColors = await api.upsertMeterColor(label, color, textColor)
-    setState((s) => ({
-      ...s,
-      meterColors,
-      presets: s.presets.map((p) =>
-        p.kind === 'cable' && p.label.toLowerCase() === label.trim().toLowerCase()
-          ? { ...p, color, textColor }
-          : p,
-      ),
-    }))
+    try {
+      const meterColors = await api.upsertMeterColor(label, color, textColor)
+      setState((s) => ({
+        ...s,
+        meterColors,
+        presets: s.presets.map((p) =>
+          p.kind === 'cable' && p.label.toLowerCase() === label.trim().toLowerCase()
+            ? { ...p, color, textColor }
+            : p,
+        ),
+      }))
+    } catch (e) {
+      notify(e instanceof Error ? e.message : 'Kleur opslaan mislukt')
+    }
   }
 
   const addPreset = async (kind: LabelKind) => {
-    const preset = await api.createPreset({ kind })
-    setState((s) => ({ ...s, presets: [...s.presets, preset] }))
-    notify(kind === 'bin' ? 'Bak-labeltype toegevoegd' : 'Labeltype toegevoegd')
+    try {
+      const preset = await api.createPreset({ kind })
+      setState((s) => ({ ...s, presets: [...s.presets, preset] }))
+      notify(kind === 'bin' ? 'Bak-labeltype toegevoegd' : 'Labeltype toegevoegd')
+    } catch (e) {
+      notify(e instanceof Error ? e.message : 'Labeltype toevoegen mislukt')
+    }
   }
 
   const updatePreset = async (id: string, patch: Partial<Preset>) => {
-    const updated = await api.updatePreset(id, patch)
-    const next = await refresh()
-    setState(next)
-    void updated
+    try {
+      await api.updatePreset(id, patch)
+      await refresh()
+    } catch (e) {
+      notify(e instanceof Error ? e.message : 'Labeltype opslaan mislukt')
+      await refresh().catch(() => undefined)
+    }
   }
 
   const deletePreset = async (id: string) => {
-    await api.deletePreset(id)
-    setBatch((b) => {
-      const n = { ...b }
-      delete n[id]
-      return n
-    })
-    await refresh()
+    try {
+      await api.deletePreset(id)
+      setBatch((b) => {
+        const n = { ...b }
+        delete n[id]
+        return n
+      })
+      await refresh()
+    } catch (e) {
+      notify(e instanceof Error ? e.message : 'Verwijderen mislukt')
+    }
   }
 
   const saveTemplate = async () => {
@@ -394,10 +409,14 @@ export default function App() {
                   onChange={async (e) => {
                     const f = e.target.files?.[0]
                     if (!f) return
-                    const logoDataUrl = await fileToDataUrl(f)
-                    const profile = await api.patchProfile({ logoDataUrl })
-                    setState((s) => ({ ...s, profile: { ...s.profile, ...profile } }))
-                    notify('Logo opgeslagen in database')
+                    try {
+                      const compressed = await compressImageFile(f)
+                      const profile = await api.uploadLogo(compressed)
+                      setState((s) => ({ ...s, profile: { ...s.profile, ...profile } }))
+                      notify('Logo opgeslagen')
+                    } catch (err) {
+                      notify(err instanceof Error ? err.message : 'Logo opslaan mislukt')
+                    }
                     e.target.value = ''
                   }}
                 />
@@ -412,8 +431,12 @@ export default function App() {
                   }))
                 }
                 onBlur={async () => {
-                  const profile = await api.patchProfile({ companyTel: state.profile.companyTel })
-                  setState((s) => ({ ...s, profile: { ...s.profile, ...profile } }))
+                  try {
+                    const profile = await api.patchProfile({ companyTel: state.profile.companyTel })
+                    setState((s) => ({ ...s, profile: { ...s.profile, ...profile } }))
+                  } catch (err) {
+                    notify(err instanceof Error ? err.message : 'Telefoon opslaan mislukt')
+                  }
                 }}
                 placeholder="Telefoon"
               />
@@ -427,8 +450,12 @@ export default function App() {
                   }))
                 }
                 onBlur={async () => {
-                  const profile = await api.patchProfile({ companyWeb: state.profile.companyWeb })
-                  setState((s) => ({ ...s, profile: { ...s.profile, ...profile } }))
+                  try {
+                    const profile = await api.patchProfile({ companyWeb: state.profile.companyWeb })
+                    setState((s) => ({ ...s, profile: { ...s.profile, ...profile } }))
+                  } catch (err) {
+                    notify(err instanceof Error ? err.message : 'Website opslaan mislukt')
+                  }
                 }}
                 placeholder="www.voorbeeld.nl"
               />

@@ -33,6 +33,29 @@ export const api = {
   patchProfile: (patch: Partial<Profile>) =>
     req<Profile>('/api/profile', { method: 'PATCH', body: JSON.stringify(patch) }),
 
+  uploadLogo: async (file: File) => {
+    const body = new FormData()
+    body.append('file', file)
+    const res = await fetch('/api/profile/logo', { method: 'POST', body })
+    if (!res.ok) {
+      let message = res.statusText
+      try {
+        const j = (await res.json()) as { error?: string }
+        if (j.error) message = j.error
+      } catch {
+        /* ignore */
+      }
+      throw new Error(message)
+    }
+    return res.json() as Promise<Profile>
+  },
+
+  uploadLogoDataUrl: (logoDataUrl: string) =>
+    req<Profile>('/api/profile/logo', {
+      method: 'POST',
+      body: JSON.stringify({ logoDataUrl }),
+    }),
+
   upsertMeterColor: (label: string, color: string, textColor: string) =>
     req<MeterColor[]>('/api/meter-colors', {
       method: 'PUT',
@@ -99,4 +122,30 @@ export async function fileToDataUrl(file: File): Promise<string> {
     reader.onerror = () => reject(reader.error)
     reader.readAsDataURL(file)
   })
+}
+
+/** Verklein logo voor snelle/betrouwbare upload (max ~1200px, JPEG/PNG/WebP). */
+export async function compressImageFile(file: File, maxEdge = 1200): Promise<File> {
+  if (file.type === 'image/svg+xml') return file
+  if (!file.type.startsWith('image/')) return file
+
+  const bitmap = await createImageBitmap(file)
+  const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height))
+  const w = Math.max(1, Math.round(bitmap.width * scale))
+  const h = Math.max(1, Math.round(bitmap.height * scale))
+  const canvas = document.createElement('canvas')
+  canvas.width = w
+  canvas.height = h
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return file
+  ctx.drawImage(bitmap, 0, 0, w, h)
+  bitmap.close()
+
+  const preferPng = file.type === 'image/png' || file.type === 'image/webp'
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, preferPng ? 'image/png' : 'image/jpeg', 0.9),
+  )
+  if (!blob) return file
+  const name = file.name.replace(/\.[^.]+$/, preferPng ? '.png' : '.jpg')
+  return new File([blob], name, { type: blob.type })
 }

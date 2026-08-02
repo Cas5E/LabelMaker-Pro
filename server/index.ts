@@ -1,7 +1,7 @@
 import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
-import { existsSync } from 'node:fs'
-import { resolve, dirname } from 'node:path'
+import { existsSync, mkdirSync, writeFileSync, readFileSync, unlinkSync } from 'node:fs'
+import { resolve, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
@@ -17,19 +17,56 @@ import {
 
 seedIfEmpty()
 
+const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const mediaDir = join(rootDir, 'data', 'media')
+mkdirSync(mediaDir, { recursive: true })
+const logoPath = join(mediaDir, 'logo')
+
 const app = new Hono()
 app.use('*', cors({ origin: '*' }))
+app.use('/api/*', async (c, next) => {
+  c.header('Cache-Control', 'no-store, no-cache, must-revalidate')
+  await next()
+})
 
 type Row = Record<string, unknown>
 
+function logoPublicUrl(): string | null {
+  // Marker in DB of echt bestand
+  const row = db.prepare('SELECT logo_data_url FROM profile WHERE id = 1').get() as
+    | { logo_data_url: string | null }
+    | undefined
+  const marker = row?.logo_data_url
+  if (!marker) return null
+  if (marker.startsWith('data:')) return marker
+  if (marker.startsWith('file:') && existsSync(logoPath)) {
+    try {
+      const mtime = readFileSync(logoPath + '.mtime', 'utf8').trim()
+      return `/api/media/logo?v=${mtime}`
+    } catch {
+      return `/api/media/logo?v=${Date.now()}`
+    }
+  }
+  if (existsSync(logoPath)) return `/api/media/logo?v=${Date.now()}`
+  return null
+}
+
 function mapProfile(row: Row) {
   return {
-    logoDataUrl: (row.logo_data_url as string | null) ?? null,
+    logoDataUrl: logoPublicUrl() ?? (row.logo_data_url as string | null) ?? null,
     companyTel: String(row.company_tel ?? ''),
     companyWeb: String(row.company_web ?? ''),
     gapMm: Number(row.gap_mm ?? 2),
     showCutMarks: Boolean(row.show_cut_marks),
   }
+}
+
+function saveLogoBuffer(buf: Buffer, mime: string) {
+  writeFileSync(logoPath, buf)
+  const mtime = String(Date.now())
+  writeFileSync(logoPath + '.mtime', mtime)
+  writeFileSync(logoPath + '.mime', mime || 'image/png')
+  db.prepare(`UPDATE profile SET logo_data_url = ? WHERE id = 1`).run(`file:logo`)
 }
 
 function mapMeterColor(row: Row) {
@@ -119,6 +156,64 @@ app.get('/api/state', (c) => {
   })
 })
 
+app.get('/api/media/logo', (c) => {
+  if (!existsSync(logoPath)) return c.json({ error: 'geen logo' }, 404)
+  const mime = existsSync(logoPath + '.mime')
+    ? readFileSync(logoPath + '.mime', 'utf8').trim()
+    : 'image/png'
+  const buf = readFileSync(logoPath)
+  return new Response(new Uint8Array(buf), {
+    headers: {
+      'Content-Type': mime,
+      'Cache-Control': 'no-store',
+    },
+  })
+})
+
+app.post('/api/profile/logo', async (c) => {
+  const contentType = c.req.header('content-type') || ''
+  try {
+    if (contentType.includes('multipart/form-data')) {
+      const body = await c.req.parseBody()
+      const file = body.file
+      if (!file || typeof file === 'string') {
+        return c.json({ error: 'bestand ontbreekt' }, 400)
+      }
+      const ab = await file.arrayBuffer()
+      const mime = file.type || 'image/png'
+      if (!mime.startsWith('image/')) return c.json({ error: 'alleen afbeeldingen' }, 400)
+      if (ab.byteLength > 8_000_000) return c.json({ error: 'logo te groot (max 8MB)' }, 400)
+      saveLogoBuffer(Buffer.from(ab), mime)
+    } else {
+      const body = await c.req.json<{ logoDataUrl?: string }>()
+      const dataUrl = body.logoDataUrl
+      if (!dataUrl?.startsWith('data:image/')) {
+        return c.json({ error: 'ongeldig logo' }, 400)
+      }
+      const m = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/)
+      if (!m) return c.json({ error: 'ongeldig data-url' }, 400)
+      const buf = Buffer.from(m[2], 'base64')
+      if (buf.byteLength > 8_000_000) return c.json({ error: 'logo te groot (max 8MB)' }, 400)
+      saveLogoBuffer(buf, m[1])
+    }
+  } catch (e) {
+    return c.json({ error: e instanceof Error ? e.message : 'logo opslaan mislukt' }, 500)
+  }
+  return c.json(mapProfile(db.prepare('SELECT * FROM profile WHERE id = 1').get() as Row))
+})
+
+app.delete('/api/profile/logo', (c) => {
+  try {
+    if (existsSync(logoPath)) unlinkSync(logoPath)
+    if (existsSync(logoPath + '.mime')) unlinkSync(logoPath + '.mime')
+    if (existsSync(logoPath + '.mtime')) unlinkSync(logoPath + '.mtime')
+  } catch {
+    /* ignore */
+  }
+  db.prepare(`UPDATE profile SET logo_data_url = NULL WHERE id = 1`).run()
+  return c.json(mapProfile(db.prepare('SELECT * FROM profile WHERE id = 1').get() as Row))
+})
+
 app.patch('/api/profile', async (c) => {
   const body = await c.req.json<{
     logoDataUrl?: string | null
@@ -128,16 +223,31 @@ app.patch('/api/profile', async (c) => {
     showCutMarks?: boolean
   }>()
   const cur = db.prepare('SELECT * FROM profile WHERE id = 1').get() as Row
+
+  // Grote data-URL → bestand (niet in SQLite; betrouwbaarder achter proxies)
+  if (body.logoDataUrl !== undefined) {
+    if (body.logoDataUrl === null || body.logoDataUrl === '') {
+      try {
+        if (existsSync(logoPath)) unlinkSync(logoPath)
+      } catch {
+        /* ignore */
+      }
+      db.prepare(`UPDATE profile SET logo_data_url = NULL WHERE id = 1`).run()
+    } else if (body.logoDataUrl.startsWith('data:image/')) {
+      const m = body.logoDataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/)
+      if (!m) return c.json({ error: 'ongeldig logo' }, 400)
+      saveLogoBuffer(Buffer.from(m[2], 'base64'), m[1])
+    }
+  }
+
   db.prepare(
     `UPDATE profile SET
-      logo_data_url = ?,
       company_tel = ?,
       company_web = ?,
       gap_mm = ?,
       show_cut_marks = ?
      WHERE id = 1`,
   ).run(
-    body.logoDataUrl !== undefined ? body.logoDataUrl : cur.logo_data_url,
     body.companyTel ?? cur.company_tel,
     body.companyWeb ?? cur.company_web,
     body.gapMm ?? cur.gap_mm,

@@ -111,13 +111,27 @@ export function seedIfEmpty() {
     const insertColor = db.prepare(
       `INSERT INTO meter_colors (id, label, color, text_color) VALUES (?, ?, ?, ?)`,
     )
-    const insertPreset = db.prepare(
-      `INSERT INTO presets (id, label, color, text_color, sort_order, width_mm, height_mm, kind, subtitle)
-       VALUES (?, ?, ?, ?, ?, 50, 35, 'cable', NULL)`,
-    )
-    for (const [i, c] of STARTER_COLORS.entries()) {
+    for (const c of STARTER_COLORS) {
       insertColor.run(uid(), c.label, c.color, c.textColor)
-      insertPreset.run(uid(), c.label, c.color, c.textColor, i)
+    }
+  }
+
+  // Kabel-presets terugzetten als ze ontbreken (kleuren bestaan wel)
+  const insertPreset = db.prepare(
+    `INSERT INTO presets (id, label, color, text_color, sort_order, width_mm, height_mm, kind, subtitle)
+     VALUES (?, ?, ?, ?, ?, 50, 35, 'cable', NULL)`,
+  )
+  const colors = db
+    .prepare('SELECT label, color, text_color FROM meter_colors ORDER BY label')
+    .all() as { label: string; color: string; text_color: string }[]
+  for (const [i, c] of colors.entries()) {
+    const exists = db
+      .prepare(
+        `SELECT id FROM presets WHERE kind = 'cable' AND label = ? COLLATE NOCASE`,
+      )
+      .get(c.label)
+    if (!exists) {
+      insertPreset.run(uid(), c.label, c.color, c.text_color, i)
     }
   }
 }
