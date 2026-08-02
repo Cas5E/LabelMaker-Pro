@@ -6,6 +6,7 @@ import {
   Plus,
   Printer,
   ImagePlus,
+  LogOut,
   QrCode,
   RefreshCw,
   Save,
@@ -18,6 +19,7 @@ import {
 } from 'lucide-react'
 import { BinLabel } from './components/BinLabel'
 import { CableLabel } from './components/CableLabel'
+import { LoginScreen } from './components/LoginScreen'
 import { PreviewFrame } from './components/PreviewFrame'
 import { PrintSheet } from './components/PrintSheet'
 import { api, compressImageFile, fileToDataUrl } from './lib/api'
@@ -54,6 +56,8 @@ const emptyState: AppState = {
 
 export default function App() {
   const [state, setState] = useState<AppState>(emptyState)
+  const [auth, setAuth] = useState<'checking' | 'anon' | 'ok'>('checking')
+  const [userEmail, setUserEmail] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [batch, setBatch] = useState<Record<string, number>>({})
@@ -73,10 +77,61 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    refresh()
-      .catch((e: Error) => setError(e.message || 'API niet bereikbaar — start `npm run dev`'))
-      .finally(() => setLoading(false))
+    let cancelled = false
+    ;(async () => {
+      try {
+        const me = await api.me()
+        if (cancelled) return
+        if (!me.authenticated) {
+          setAuth('anon')
+          setLoading(false)
+          return
+        }
+        setUserEmail(me.email ?? null)
+        setAuth('ok')
+        await refresh()
+      } catch (e) {
+        if (cancelled) return
+        const err = e as Error & { status?: number }
+        if (err.status === 401) {
+          setAuth('anon')
+        } else {
+          setError(err.message || 'API niet bereikbaar — start `npm run dev`')
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
   }, [refresh])
+
+  const handleLogin = async (email: string, password: string) => {
+    const me = await api.login(email, password)
+    setUserEmail(me.email)
+    setAuth('ok')
+    setLoading(true)
+    try {
+      await refresh()
+      setError(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Laden mislukt')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    try {
+      await api.logout()
+    } catch {
+      /* ignore */
+    }
+    setAuth('anon')
+    setUserEmail(null)
+    setState(emptyState)
+  }
 
   useEffect(() => {
     if (!toast) return
@@ -300,12 +355,16 @@ export default function App() {
 
   const totalQty = labels.length
 
-  if (loading) {
+  if (auth === 'checking' || (auth === 'ok' && loading)) {
     return (
       <div className="grid min-h-screen place-items-center text-[var(--color-muted)]">
-        Database laden…
+        {auth === 'checking' ? 'Sessie controleren…' : 'Database laden…'}
       </div>
     )
+  }
+
+  if (auth === 'anon') {
+    return <LoginScreen onLogin={handleLogin} />
   }
 
   if (error) {
@@ -344,15 +403,24 @@ export default function App() {
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            disabled={totalQty === 0}
-            onClick={() => window.print()}
-            className="btn-primary"
-          >
-            <Printer className="h-4 w-4" />
-            Print ({totalQty})
-          </button>
+          <div className="flex items-center gap-2">
+            {userEmail ? (
+              <span className="hidden text-xs text-[var(--color-muted)] sm:inline">{userEmail}</span>
+            ) : null}
+            <button type="button" className="btn-ghost btn-sm" onClick={() => void handleLogout()}>
+              <LogOut className="h-3.5 w-3.5" />
+              Uitloggen
+            </button>
+            <button
+              type="button"
+              disabled={totalQty === 0}
+              onClick={() => window.print()}
+              className="btn-primary"
+            >
+              <Printer className="h-4 w-4" />
+              Print ({totalQty})
+            </button>
+          </div>
         </div>
       </header>
 

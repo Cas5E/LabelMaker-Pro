@@ -10,9 +10,14 @@ import type {
 } from './types'
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers = new Headers(init?.headers)
+  if (init?.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json')
+  }
   const res = await fetch(path, {
-    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+    credentials: 'include',
     ...init,
+    headers,
   })
   if (!res.ok) {
     let message = res.statusText
@@ -22,12 +27,25 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       /* ignore */
     }
-    throw new Error(message)
+    const err = new Error(message) as Error & { status?: number }
+    err.status = res.status
+    throw err
   }
   return res.json() as Promise<T>
 }
 
 export const api = {
+  me: () =>
+    req<{ authenticated: boolean; email?: string }>('/api/auth/me'),
+
+  login: (email: string, password: string) =>
+    req<{ authenticated: boolean; email: string }>('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    }),
+
+  logout: () => req<{ ok: boolean }>('/api/auth/logout', { method: 'POST' }),
+
   getState: () => req<AppState>('/api/state'),
 
   patchProfile: (patch: Partial<Profile>) =>
@@ -36,7 +54,11 @@ export const api = {
   uploadLogo: async (file: File) => {
     const body = new FormData()
     body.append('file', file)
-    const res = await fetch('/api/profile/logo', { method: 'POST', body })
+    const res = await fetch('/api/profile/logo', {
+      method: 'POST',
+      body,
+      credentials: 'include',
+    })
     if (!res.ok) {
       let message = res.statusText
       try {
@@ -45,7 +67,9 @@ export const api = {
       } catch {
         /* ignore */
       }
-      throw new Error(message)
+      const err = new Error(message) as Error & { status?: number }
+      err.status = res.status
+      throw err
     }
     return res.json() as Promise<Profile>
   },

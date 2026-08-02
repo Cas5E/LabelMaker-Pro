@@ -6,6 +6,14 @@ import { fileURLToPath } from 'node:url'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import './env.ts'
+import {
+  authConfigured,
+  clearSession,
+  requireAuth,
+  sessionEmail,
+  setSession,
+  verifyCredentials,
+} from './auth.ts'
 import { db, seedIfEmpty, uid } from './db.ts'
 import { makeQrDataUrl } from './qr.ts'
 import {
@@ -23,10 +31,46 @@ mkdirSync(mediaDir, { recursive: true })
 const logoPath = join(mediaDir, 'logo')
 
 const app = new Hono()
-app.use('*', cors({ origin: '*' }))
+app.use(
+  '*',
+  cors({
+    origin: (origin) => origin || '*',
+    credentials: true,
+  }),
+)
 app.use('/api/*', async (c, next) => {
   c.header('Cache-Control', 'no-store, no-cache, must-revalidate')
   await next()
+})
+app.use('/api/*', requireAuth)
+
+app.get('/api/health', (c) =>
+  c.json({ ok: true, auth: authConfigured() }),
+)
+
+app.get('/api/auth/me', (c) => {
+  const email = sessionEmail(c)
+  if (!email) return c.json({ authenticated: false })
+  return c.json({ authenticated: true, email })
+})
+
+app.post('/api/auth/login', async (c) => {
+  if (!authConfigured()) {
+    return c.json({ error: 'Auth niet geconfigureerd' }, 503)
+  }
+  const body = await c.req.json<{ email?: string; password?: string }>()
+  const email = String(body.email ?? '')
+  const password = String(body.password ?? '')
+  if (!verifyCredentials(email, password)) {
+    return c.json({ error: 'Onjuiste e-mail of wachtwoord' }, 401)
+  }
+  setSession(c, email.trim().toLowerCase())
+  return c.json({ authenticated: true, email: email.trim().toLowerCase() })
+})
+
+app.post('/api/auth/logout', (c) => {
+  clearSession(c)
+  return c.json({ ok: true })
 })
 
 type Row = Record<string, unknown>
@@ -133,8 +177,6 @@ function nextBinCode(): string {
   }
   return `BAK-${String(max + 1).padStart(3, '0')}`
 }
-
-app.get('/api/health', (c) => c.json({ ok: true }))
 
 app.get('/api/state', (c) => {
   const profile = db.prepare('SELECT * FROM profile WHERE id = 1').get() as Row
