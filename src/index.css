@@ -1,0 +1,117 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-display: 'Syne', sans-serif;
+  --font-sans: 'IBM Plex Sans', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+
+  --color-ink: #e8eef8;
+  --color-muted: #94a3b8;
+  --color-panel: #121a2b;
+  --color-panel-2: #182338;
+  --color-line: #243049;
+  --color-accent: #22d3ee;
+  --color-accent-2: #38bdf8;
+  --color-danger: #f87171;
+  --color-canvas: #0b1220;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(34, 211, 238, 0.14), transparent 55%),
+    radial-gradient(900px 500px at 90% 0%, rgba(56, 189, 248, 0.1), transparent 50%),
+    linear-gradient(180deg, #0d1526 0%, var(--color-canvas) 40%, #080d16 100%);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.print-only {
+  display: none;
+}
+
+.preview-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  align-items: center;
+}
+
+.preview-frame {
+  width: min(100%, 210mm);
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 0.85rem;
+  background:
+    linear-gradient(180deg, rgba(34, 211, 238, 0.06), transparent 40%),
+    #151e31;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 24px 60px rgba(0, 0, 0, 0.4);
+}
+
+.preview-frame .print-page {
+  transform-origin: top left;
+  box-shadow: none !important;
+}
+
+@media screen {
+  .preview-frame .print-page {
+    margin: 0;
+  }
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .print-only,
+  .print-only * {
+    visibility: visible;
+  }
+
+  .print-only {
+    display: block;
+    position: absolute;
+    inset: 0;
+  }
+
+  .print-page {
+    box-shadow: none !important;
+    margin: 0 !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}
