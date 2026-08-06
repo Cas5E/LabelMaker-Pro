@@ -7,4 +7,5 @@ export const SIZE_PRESETS: SizePreset[] = [
   { label: 'Mini 40×15 (dun kabeltje)', w: 40, h: 15, kinds: ['cable'] },
   { label: 'Flightcase half A4 (200×140)', w: 200, h: 140, kinds: ['flightcase'] },
   { label: 'Flightcase / bak kwart A4 (200×70)', w: 200, h: 70, kinds: ['flightcase', 'bin'] },
+  { label: 'Bak tekst 55×15 mm (alleen tekst)', w: 55, h: 15, kinds: ['bin'] },
 ]

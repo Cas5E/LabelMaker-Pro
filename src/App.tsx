@@ -17,7 +17,7 @@ import {
   Scissors,
   X,
 } from 'lucide-react'
-import { BinLabel } from './components/BinLabel'
+import { BinLabel, isBinTextOnly } from './components/BinLabel'
 import { CableLabel } from './components/CableLabel'
 import { LoginScreen } from './components/LoginScreen'
 import { PreviewFrame } from './components/PreviewFrame'
@@ -1453,6 +1453,8 @@ function BinRow({
   const [contents, setContents] = useState(bin.contents)
   const [location, setLocation] = useState(bin.location)
   const [qrPayload, setQrPayload] = useState(bin.qrPayload)
+  const [widthMm, setWidthMm] = useState(bin.widthMm)
+  const [heightMm, setHeightMm] = useState(bin.heightMm)
   const [showQrExtra, setShowQrExtra] = useState(false)
   const [saving, setSaving] = useState(false)
   const qrRef = useRef<HTMLInputElement>(null)
@@ -1464,19 +1466,38 @@ function BinRow({
     setContents(bin.contents)
     setLocation(bin.location)
     setQrPayload(bin.qrPayload)
+    setWidthMm(bin.widthMm)
+    setHeightMm(bin.heightMm)
   }, [bin.id, bin.updatedAt])
+
+  const textOnly = isBinTextOnly(widthMm, heightMm)
+  const binSizes = SIZE_PRESETS.filter((sp) => !sp.kinds || sp.kinds.includes('bin'))
+  const previewScale = Math.min(1.8, 320 / widthMm)
 
   const dirty =
     code !== bin.code ||
     name !== bin.name ||
     contents !== bin.contents ||
     location !== bin.location ||
-    qrPayload !== bin.qrPayload
+    qrPayload !== bin.qrPayload ||
+    widthMm !== bin.widthMm ||
+    heightMm !== bin.heightMm
 
   const save = async () => {
     setSaving(true)
     try {
-      await onSave({ code, name, contents, location, qrPayload })
+      await onSave({ code, name, contents, location, qrPayload, widthMm, heightMm })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const setFormat = async (w: number, h: number) => {
+    setWidthMm(w)
+    setHeightMm(h)
+    setSaving(true)
+    try {
+      await onSave({ widthMm: w, heightMm: h })
     } finally {
       setSaving(false)
     }
@@ -1485,32 +1506,40 @@ function BinRow({
   return (
     <div className="space-y-3 rounded-xl border border-[var(--color-line)] bg-[rgba(24,35,56,0.72)] p-3">
       <div className="flex items-start gap-3">
-        <button
-          type="button"
-          className="relative flex h-[4.5rem] w-[4.5rem] shrink-0 flex-col items-center justify-center overflow-hidden rounded-lg border border-dashed border-[var(--color-line)] bg-[var(--color-panel)]"
-          onClick={() => photoRef.current?.click()}
-          title="Productfoto"
-        >
-          {bin.photoDataUrl ? (
-            <img src={bin.photoDataUrl} alt="" className="h-full w-full object-contain bg-white" />
-          ) : (
-            <>
-              <ImagePlus className="h-5 w-5 text-[var(--color-muted)]" />
-              <span className="mt-1 text-[10px] text-[var(--color-muted)]">Foto</span>
-            </>
-          )}
-        </button>
-        <input
-          ref={photoRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0]
-            if (f) onUploadPhoto(f)
-            e.target.value = ''
-          }}
-        />
+        {!textOnly && (
+          <>
+            <button
+              type="button"
+              className="relative flex h-[4.5rem] w-[4.5rem] shrink-0 flex-col items-center justify-center overflow-hidden rounded-lg border border-dashed border-[var(--color-line)] bg-[var(--color-panel)]"
+              onClick={() => photoRef.current?.click()}
+              title="Productfoto"
+            >
+              {bin.photoDataUrl ? (
+                <img
+                  src={bin.photoDataUrl}
+                  alt=""
+                  className="h-full w-full object-contain bg-white"
+                />
+              ) : (
+                <>
+                  <ImagePlus className="h-5 w-5 text-[var(--color-muted)]" />
+                  <span className="mt-1 text-[10px] text-[var(--color-muted)]">Foto</span>
+                </>
+              )}
+            </button>
+            <input
+              ref={photoRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (f) onUploadPhoto(f)
+                e.target.value = ''
+              }}
+            />
+          </>
+        )}
 
         <div className="grid min-w-0 flex-1 grid-cols-2 gap-2">
           <div>
@@ -1549,6 +1578,33 @@ function BinRow({
               placeholder="Bijv. 5-pin / 3-pin"
             />
           </div>
+          <div className="col-span-2">
+            <FieldLabel>Formaat</FieldLabel>
+            <select
+              className="field h-9 w-full text-sm"
+              value={`${widthMm}x${heightMm}`}
+              onChange={(e) => {
+                const sp = binSizes.find((s) => `${s.w}x${s.h}` === e.target.value)
+                if (sp) void setFormat(sp.w, sp.h)
+              }}
+            >
+              {binSizes.map((sp) => (
+                <option key={`${sp.w}x${sp.h}`} value={`${sp.w}x${sp.h}`}>
+                  {sp.label}
+                </option>
+              ))}
+              {!binSizes.some((s) => s.w === widthMm && s.h === heightMm) && (
+                <option value={`${widthMm}x${heightMm}`}>
+                  Aangepast {widthMm}×{heightMm} mm
+                </option>
+              )}
+            </select>
+            {textOnly ? (
+              <p className="mt-1 text-[11px] text-[var(--color-muted)]">
+                Compact label: alleen tekst (geen foto/QR).
+              </p>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -1562,22 +1618,30 @@ function BinRow({
           <Save className="h-3.5 w-3.5" />
           {saving ? 'Bezig…' : 'Opslaan'}
         </button>
-        {bin.photoDataUrl ? (
-          <button type="button" className="btn-ghost btn-sm" onClick={onClearPhoto}>
-            <X className="h-3.5 w-3.5" /> Foto weg
-          </button>
-        ) : (
-          <button type="button" className="btn-ghost btn-sm" onClick={() => photoRef.current?.click()}>
-            <ImagePlus className="h-3.5 w-3.5" /> Foto
-          </button>
+        {!textOnly && (
+          <>
+            {bin.photoDataUrl ? (
+              <button type="button" className="btn-ghost btn-sm" onClick={onClearPhoto}>
+                <X className="h-3.5 w-3.5" /> Foto weg
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn-ghost btn-sm"
+                onClick={() => photoRef.current?.click()}
+              >
+                <ImagePlus className="h-3.5 w-3.5" /> Foto
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn-ghost btn-sm"
+              onClick={() => setShowQrExtra((v) => !v)}
+            >
+              <QrCode className="h-3.5 w-3.5" /> QR opties
+            </button>
+          </>
         )}
-        <button
-          type="button"
-          className="btn-ghost btn-sm"
-          onClick={() => setShowQrExtra((v) => !v)}
-        >
-          <QrCode className="h-3.5 w-3.5" /> QR opties
-        </button>
         <div className="ml-auto flex items-center gap-1">
           <span className="text-xs text-[var(--color-muted)]">Print</span>
           <button type="button" className="icon-btn" onClick={() => onQty(qty - 1)}>
@@ -1599,7 +1663,7 @@ function BinRow({
         </div>
       </div>
 
-      {showQrExtra && (
+      {showQrExtra && !textOnly && (
         <div className="space-y-2 rounded-lg border border-[var(--color-line)] bg-[rgba(11,18,32,0.35)] p-2.5">
           <FieldLabel>QR inhoud (tekst of URL)</FieldLabel>
           <div className="flex flex-wrap gap-2">
@@ -1637,18 +1701,28 @@ function BinRow({
 
       <div className="overflow-hidden rounded-lg border border-[var(--color-line)] bg-[#dbe3ef] p-2">
         <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
-          Live label
+          Live label · {widthMm}×{heightMm} mm
         </p>
-        <div className="overflow-hidden rounded bg-white shadow-sm">
-          <div className="origin-top-left scale-[0.58]" style={{ width: '172%' }}>
+        <div className="overflow-hidden rounded bg-white shadow-sm p-2">
+          <div
+            className="origin-top-left"
+            style={{
+              transform: `scale(${previewScale})`,
+              width: `${widthMm}mm`,
+              height: `${heightMm}mm`,
+              marginBottom: `${heightMm * (previewScale - 1)}mm`,
+            }}
+          >
             <BinLabel
               code={code || 'BAK'}
               name={name}
               contents={contents}
               location={location}
               logoUrl={logoUrl}
-              qrDataUrl={bin.qrDataUrl}
-              photoDataUrl={bin.photoDataUrl}
+              qrDataUrl={textOnly ? null : bin.qrDataUrl}
+              photoDataUrl={textOnly ? null : bin.photoDataUrl}
+              widthMm={widthMm}
+              heightMm={heightMm}
             />
           </div>
         </div>

@@ -1,7 +1,8 @@
 import { FitText } from './FitText'
 
-/** Magazijn bak-label — 200×70 mm.
- *  [blauwe rand] [foto?] [NAAM + info gecentreerd] [QR]
+/** Magazijn bak-label.
+ *  Standaard 200×70: [blauwe rand] [foto?] [NAAM + info] [QR]
+ *  Compact (bijv. 55×15): alleen tekst
  */
 
 export interface BinLabelProps {
@@ -30,6 +31,11 @@ const ACCENT_SVG =
     </svg>`,
   )
 
+/** Compacte tekstlabels (o.a. 55×15 mm) — geen foto/QR/accent. */
+export function isBinTextOnly(widthMm: number, heightMm: number) {
+  return heightMm <= 20 || (widthMm <= 60 && heightMm <= 25)
+}
+
 export function BinLabel({
   code,
   name,
@@ -40,12 +46,6 @@ export function BinLabel({
   widthMm = 200,
   heightMm = 70,
 }: BinLabelProps) {
-  const hasPhoto = Boolean(photoDataUrl)
-  const accentW = Math.max(2.2, widthMm * 0.015)
-  const pad = heightMm * 0.08
-  const mediaSize = Math.min(heightMm - pad * 2, widthMm * 0.22)
-  const mediaCol = mediaSize + pad * 1.1
-
   const title =
     name.trim() && name.trim().toUpperCase() !== code.trim().toUpperCase()
       ? name.trim()
@@ -54,9 +54,73 @@ export function BinLabel({
   const parts = [contents?.trim(), location?.trim()].filter(Boolean) as string[]
   const info = parts.length ? parts.join('  ·  ') : null
 
+  if (isBinTextOnly(widthMm, heightMm)) {
+    const padX = Math.max(1.2, widthMm * 0.04)
+    const padY = Math.max(0.8, heightMm * 0.12)
+    const boxH = heightMm - padY * 2
+    const boxW = widthMm - padX * 2
+    const showInfo = Boolean(info) && heightMm >= 18
+    const titleH = showInfo ? boxH * 0.62 : boxH
+    const infoH = boxH * 0.35
+
+    return (
+      <div
+        className="label-tile bin-label bin-label--text"
+        style={{
+          width: `${widthMm}mm`,
+          height: `${heightMm}mm`,
+          boxSizing: 'border-box',
+          outline: '0.25mm solid #0a0f1a',
+          outlineOffset: '-0.25mm',
+          border: 'none',
+          backgroundColor: '#fff',
+          position: 'relative',
+          overflow: 'hidden',
+          fontFamily: 'Arial, Helvetica, sans-serif',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: `${padY}mm ${padX}mm`,
+          WebkitPrintColorAdjust: 'exact',
+          printColorAdjust: 'exact',
+        }}
+      >
+        <FitText
+          text={title}
+          widthMm={boxW}
+          heightMm={titleH}
+          maxMm={Math.min(heightMm * 0.55, widthMm * 0.14)}
+          minMm={Math.max(1.4, heightMm * 0.22)}
+          maxLines={1}
+          fontWeight={900}
+          color="#0a0f1a"
+          letterSpacing="-0.02em"
+        />
+        {showInfo && info ? (
+          <FitText
+            text={info}
+            widthMm={boxW}
+            heightMm={infoH}
+            maxMm={Math.min(heightMm * 0.28, widthMm * 0.08)}
+            minMm={Math.max(1.2, heightMm * 0.14)}
+            maxLines={1}
+            fontWeight={600}
+            color="#334155"
+          />
+        ) : null}
+      </div>
+    )
+  }
+
+  const hasPhoto = Boolean(photoDataUrl)
+  const accentW = Math.max(2.2, widthMm * 0.015)
+  const pad = heightMm * 0.08
+  const mediaSize = Math.min(heightMm - pad * 2, widthMm * 0.22)
+  const mediaCol = mediaSize + pad * 1.1
+
   const titleMax = Math.min(widthMm * 0.058, heightMm * 0.26)
   const infoMax = Math.min(widthMm * 0.034, heightMm * 0.15)
-  // Ruimteverdeling: titel krijgt meer hoogte dan info
   const titleBoxH = info ? heightMm * 0.42 : heightMm * 0.55
   const infoBoxH = heightMm * 0.2
   const textColW =
