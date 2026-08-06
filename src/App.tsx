@@ -1492,7 +1492,7 @@ function BinRow({
           title="Productfoto"
         >
           {bin.photoDataUrl ? (
-            <img src={bin.photoDataUrl} alt="" className="h-full w-full object-cover" />
+            <img src={bin.photoDataUrl} alt="" className="h-full w-full object-contain bg-white" />
           ) : (
             <>
               <ImagePlus className="h-5 w-5 text-[var(--color-muted)]" />

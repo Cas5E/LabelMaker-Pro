@@ -132,7 +132,11 @@ export function BinLabel({
               style={{
                 width: `${mediaSize}mm`,
                 height: `${mediaSize}mm`,
-                objectFit: 'cover',
+                maxWidth: '100%',
+                maxHeight: '100%',
+                objectFit: 'contain',
+                objectPosition: 'center',
+                backgroundColor: '#fff',
                 borderRadius: '0.6mm',
                 display: 'block',
               }}
