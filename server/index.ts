@@ -378,8 +378,8 @@ app.post('/api/presets', async (c) => {
       .get(label) as { color: string; text_color: string } | undefined
     color ??= scheme?.color ?? '#2FA9E0'
     textColor ??= scheme?.text_color ?? '#FFFFFF'
-    widthMm ??= 50
-    heightMm ??= 35
+    widthMm ??= 75
+    heightMm ??= 63
   }
 
   const id = uid()

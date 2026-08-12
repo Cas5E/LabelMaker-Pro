@@ -15,8 +15,8 @@ export function CableLabel({
   color,
   textColor = '#FFFFFF',
   logoUrl,
-  widthMm = 50,
-  heightMm = 35,
+  widthMm = 75,
+  heightMm = 63,
 }: CableLabelProps) {
   const len = label.length
   const barW = Math.min(16, Math.max(8, widthMm * 0.28))
