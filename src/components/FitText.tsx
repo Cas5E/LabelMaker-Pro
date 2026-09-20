@@ -19,8 +19,8 @@ interface FitTextProps {
 }
 
 /**
- * Berekent font-size uit breedte/hoogte/tekstlengte zodat het past — geen ellipsis.
- * Bold Arial ≈ 0.62em per teken; wrapping mag over maxLines.
+ * Berekent font-size zodat tekst past — krimpt onder minMm als dat nodig is.
+ * Bold Arial ≈ 0.55–0.62em per teken afhankelijk van gewicht.
  */
 function fitFontMm(
   text: string,
@@ -29,26 +29,33 @@ function fitFontMm(
   maxMm: number,
   minMm: number,
   maxLines: number,
+  fontWeight: number | string,
 ): number {
   const t = text.trim()
   if (!t || widthMm <= 0 || heightMm <= 0) return maxMm
 
-  const lineHeight = 1.05
-  const charRatio = 0.62 // conservatief voor Arial Black / 900
+  const weight = typeof fontWeight === 'number' ? fontWeight : parseInt(String(fontWeight), 10) || 700
+  const lineHeight = 1.08
+  // Zwaarder = breder
+  const charRatio = weight >= 800 ? 0.62 : weight >= 600 ? 0.56 : 0.5
   const chars = t.length
 
-  // Max per hoogte
   const byHeight = heightMm / (maxLines * lineHeight)
-
-  // Max per breedte: bij N regels is er ~ N * width aan "tekstbreedte"
   const byWidth = (widthMm * maxLines) / (chars * charRatio)
-
-  // Extra: lange woorden moeten in één regelbreedte passen
   const longestWord = Math.max(...t.split(/\s+/).map((w) => w.length), 1)
   const byWord = widthMm / (longestWord * charRatio)
 
-  const size = Math.min(maxMm, byHeight, byWidth, byWord)
-  return Math.max(minMm, Number(size.toFixed(2)))
+  let size = Math.min(maxMm, byHeight, byWidth, byWord)
+
+  // Soft min: respecteer minMm alleen als tekst dan nog past
+  if (size >= minMm) {
+    size = Math.max(minMm, size)
+  } else {
+    // Liever kleiner dan overflow/afkappen
+    size = Math.max(1.0, size)
+  }
+
+  return Number(size.toFixed(2))
 }
 
 export function FitText({
@@ -67,9 +74,11 @@ export function FitText({
   align = 'center',
 }: FitTextProps) {
   const sizeMm = useMemo(
-    () => fitFontMm(text, widthMm, heightMm, maxMm, minMm, maxLines),
-    [text, widthMm, heightMm, maxMm, minMm, maxLines],
+    () => fitFontMm(text, widthMm, heightMm, maxMm, minMm, maxLines, fontWeight),
+    [text, widthMm, heightMm, maxMm, minMm, maxLines, fontWeight],
   )
+
+  const singleLine = maxLines === 1
 
   return (
     <div
@@ -93,15 +102,14 @@ export function FitText({
           fontFamily,
           color,
           letterSpacing,
-          lineHeight: 1.05,
+          lineHeight: 1.08,
           textAlign: align,
           width: '100%',
           maxHeight: `${heightMm}mm`,
           overflow: 'hidden',
-          // Geen ellipsis / line-clamp — tekst is al geschaald om te passen
-          whiteSpace: maxLines === 1 ? 'nowrap' : 'normal',
-          wordBreak: maxLines === 1 ? 'normal' : 'break-word',
-          overflowWrap: maxLines === 1 ? 'normal' : 'anywhere',
+          whiteSpace: singleLine ? 'nowrap' : 'normal',
+          wordBreak: singleLine ? 'normal' : 'break-word',
+          overflowWrap: singleLine ? 'normal' : 'anywhere',
         }}
       >
         {text}

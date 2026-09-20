@@ -1,6 +1,6 @@
 import { FitText } from './FitText'
 
-/** Simpel tekstlabel: dunne zwarte rand, dikke tekst, geen logo/graphics. */
+/** Simpel tekstlabel: dunne zwarte rand, dikke tekst, auto-schaal. */
 export interface TextLabelProps {
   title: string
   body?: string | null
@@ -14,12 +14,16 @@ export function TextLabel({
   widthMm = 100,
   heightMm = 25,
 }: TextLabelProps) {
-  const padX = Math.max(1.5, widthMm * 0.04)
-  const padY = Math.max(1.2, heightMm * 0.18)
+  const padX = Math.max(1.5, widthMm * 0.035)
+  const padY = Math.max(1.0, heightMm * 0.14)
   const textW = widthMm - padX * 2
+  const innerH = heightMm - padY * 2
   const hasBody = Boolean(body?.trim())
-  const titleH = hasBody ? (heightMm - padY * 2) * 0.58 : heightMm - padY * 2
-  const bodyH = (heightMm - padY * 2) * 0.38
+  const titleH = hasBody ? innerH * 0.58 : innerH
+  const bodyH = innerH * 0.38
+  const titleText = (title || '').trim() || '—'
+  // Lange titels mogen over 2 regels; korte op 1
+  const titleLines = titleText.length > 28 || (titleText.length > 18 && widthMm < 120) ? 2 : 1
 
   return (
     <div
@@ -42,12 +46,12 @@ export function TextLabel({
       }}
     >
       <FitText
-        text={title.trim() || '—'}
+        text={titleText}
         widthMm={textW}
         heightMm={titleH}
-        maxMm={Math.min(heightMm * 0.55, widthMm * 0.12)}
-        minMm={Math.max(2.5, heightMm * 0.28)}
-        maxLines={1}
+        maxMm={Math.min(heightMm * 0.5, widthMm * 0.11)}
+        minMm={1.8}
+        maxLines={titleLines}
         fontWeight={700}
         color="#000"
         align="left"
@@ -57,9 +61,9 @@ export function TextLabel({
           text={body!.trim()}
           widthMm={textW}
           heightMm={bodyH}
-          maxMm={Math.min(heightMm * 0.32, widthMm * 0.07)}
-          minMm={Math.max(1.8, heightMm * 0.16)}
-          maxLines={1}
+          maxMm={Math.min(heightMm * 0.28, widthMm * 0.065)}
+          minMm={1.4}
+          maxLines={2}
           fontWeight={600}
           color="#000"
           align="left"
