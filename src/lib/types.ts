@@ -13,6 +13,9 @@ export interface Preset {
   qrPayload?: string | null
   qrDataUrl?: string | null
   location?: string | null
+  fontFamily?: string
+  fontBold?: boolean
+  fontItalic?: boolean
 }
 
 export interface MeterColor {
@@ -101,6 +104,9 @@ export interface LabelItem {
   qrDataUrl?: string | null
   photoDataUrl?: string | null
   location?: string | null
+  fontFamily?: string
+  fontBold?: boolean
+  fontItalic?: boolean
 }
 
 export interface PrintPageData {

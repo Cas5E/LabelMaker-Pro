@@ -100,6 +100,9 @@ export function PrintSheet({
                 body={l.subtitle}
                 widthMm={l.widthMm}
                 heightMm={l.heightMm}
+                fontFamily={l.fontFamily}
+                fontBold={l.fontBold}
+                fontItalic={l.fontItalic}
               />
             )
           }

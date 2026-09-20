@@ -23,7 +23,7 @@ import { LoginScreen } from './components/LoginScreen'
 import { PreviewFrame } from './components/PreviewFrame'
 import { PrintSheet } from './components/PrintSheet'
 import { api, compressImageFile, fileToDataUrl } from './lib/api'
-import { SIZE_PRESETS } from './lib/defaults'
+import { FONT_OPTIONS, SIZE_PRESETS } from './lib/defaults'
 import { capacityFor, paginateLabels } from './lib/layout'
 import type {
   AppState,
@@ -154,6 +154,9 @@ export default function App() {
           subtitle: p.subtitle,
           qrDataUrl: p.qrDataUrl,
           location: p.location,
+          fontFamily: p.fontFamily,
+          fontBold: p.fontBold,
+          fontItalic: p.fontItalic,
         })
       }
     }
@@ -1265,13 +1268,45 @@ function PresetRow({
       )}
 
       {preset.kind === 'text' && (
-        <input
-          className="field"
-          value={subtitle}
-          onChange={(e) => setSubtitle(e.target.value)}
-          onBlur={() => onUpdate({ subtitle })}
-          placeholder="Optioneel: met accessoires (leeg = alleen titel)"
-        />
+        <>
+          <input
+            className="field"
+            value={subtitle}
+            onChange={(e) => setSubtitle(e.target.value)}
+            onBlur={() => onUpdate({ subtitle })}
+            placeholder="Optioneel: met accessoires (leeg = alleen titel)"
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              className="field h-8 min-w-[10rem] flex-1 text-sm"
+              value={preset.fontFamily ?? 'arial'}
+              onChange={(e) => onUpdate({ fontFamily: e.target.value })}
+              style={{ fontFamily: FONT_OPTIONS.find((f) => f.id === (preset.fontFamily ?? 'arial'))?.css }}
+            >
+              {FONT_OPTIONS.map((f) => (
+                <option key={f.id} value={f.id} style={{ fontFamily: f.css }}>
+                  {f.label}
+                </option>
+              ))}
+            </select>
+            <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-[var(--color-line)] px-2.5 py-1.5 text-xs font-semibold">
+              <input
+                type="checkbox"
+                checked={preset.fontBold !== false}
+                onChange={(e) => onUpdate({ fontBold: e.target.checked })}
+              />
+              <span style={{ fontWeight: 700 }}>Bold</span>
+            </label>
+            <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-[var(--color-line)] px-2.5 py-1.5 text-xs font-semibold">
+              <input
+                type="checkbox"
+                checked={Boolean(preset.fontItalic)}
+                onChange={(e) => onUpdate({ fontItalic: e.target.checked })}
+              />
+              <span style={{ fontStyle: 'italic' }}>Italic</span>
+            </label>
+          </div>
+        </>
       )}
 
       <div className="flex flex-wrap items-center gap-2">

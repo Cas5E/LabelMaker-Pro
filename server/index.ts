@@ -131,11 +131,14 @@ function mapPreset(row: Row) {
     sortOrder: Number(row.sort_order ?? 0),
     widthMm: Number(row.width_mm ?? 50),
     heightMm: Number(row.height_mm ?? 35),
-    kind: String(row.kind) as 'cable' | 'flightcase' | 'bin',
+    kind: String(row.kind) as 'cable' | 'flightcase' | 'bin' | 'text',
     subtitle: (row.subtitle as string | null) ?? null,
     qrPayload: (row.qr_payload as string | null) ?? null,
     qrDataUrl: (row.qr_data_url as string | null) ?? null,
     location: (row.location as string | null) ?? null,
+    fontFamily: String(row.font_family ?? 'arial'),
+    fontBold: row.font_bold === undefined || row.font_bold === null ? true : Boolean(row.font_bold),
+    fontItalic: Boolean(row.font_italic),
   }
 }
 
@@ -390,10 +393,26 @@ app.post('/api/presets', async (c) => {
   }
 
   const id = uid()
+  const fontFamily = kind === 'text' ? 'arial' : 'arial'
+  const fontBold = kind === 'text' ? 1 : 1
+  const fontItalic = 0
   db.prepare(
-    `INSERT INTO presets (id, label, color, text_color, sort_order, width_mm, height_mm, kind, subtitle)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(id, label, color, textColor, maxOrder.m + 1, widthMm, heightMm, kind, subtitle)
+    `INSERT INTO presets (id, label, color, text_color, sort_order, width_mm, height_mm, kind, subtitle, font_family, font_bold, font_italic)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    id,
+    label,
+    color,
+    textColor,
+    maxOrder.m + 1,
+    widthMm,
+    heightMm,
+    kind,
+    subtitle,
+    fontFamily,
+    fontBold,
+    fontItalic,
+  )
 
   return c.json(mapPreset(db.prepare('SELECT * FROM presets WHERE id = ?').get(id) as Row), 201)
 })
@@ -423,7 +442,8 @@ app.patch('/api/presets/:id', async (c) => {
     `UPDATE presets SET
       label = ?, color = ?, text_color = ?,
       width_mm = ?, height_mm = ?, subtitle = ?,
-      qr_payload = ?, qr_data_url = ?, location = ?
+      qr_payload = ?, qr_data_url = ?, location = ?,
+      font_family = ?, font_bold = ?, font_italic = ?
      WHERE id = ?`,
   ).run(
     label,
@@ -435,6 +455,23 @@ app.patch('/api/presets/:id', async (c) => {
     body.qrPayload !== undefined ? body.qrPayload : cur.qr_payload,
     body.qrDataUrl !== undefined ? body.qrDataUrl : cur.qr_data_url,
     body.location !== undefined ? body.location : cur.location,
+    body.fontFamily !== undefined ? String(body.fontFamily) : (cur.font_family ?? 'arial'),
+    body.fontBold !== undefined
+      ? body.fontBold
+        ? 1
+        : 0
+      : cur.font_bold === undefined || cur.font_bold === null
+        ? 1
+        : cur.font_bold
+          ? 1
+          : 0,
+    body.fontItalic !== undefined
+      ? body.fontItalic
+        ? 1
+        : 0
+      : cur.font_italic
+        ? 1
+        : 0,
     id,
   )
 

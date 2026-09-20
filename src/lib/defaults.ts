@@ -13,3 +13,22 @@ export const SIZE_PRESETS: SizePreset[] = [
   { label: 'Tekst breed 140×30', w: 140, h: 30, kinds: ['text'] },
   { label: 'Tekst groot 200×40', w: 200, h: 40, kinds: ['text'] },
 ]
+
+/** Lettertypes voor tekstlabels (print-vriendelijk). */
+export const FONT_OPTIONS: { id: string; label: string; css: string }[] = [
+  { id: 'arial', label: 'Arial', css: 'Arial, Helvetica, sans-serif' },
+  { id: 'helvetica', label: 'Helvetica', css: 'Helvetica, Arial, sans-serif' },
+  { id: 'ibm-plex', label: 'IBM Plex Sans', css: "'IBM Plex Sans', Arial, sans-serif" },
+  { id: 'inter', label: 'Inter', css: 'Inter, Arial, sans-serif' },
+  { id: 'roboto', label: 'Roboto', css: 'Roboto, Arial, sans-serif' },
+  { id: 'verdana', label: 'Verdana', css: 'Verdana, Geneva, sans-serif' },
+  { id: 'trebuchet', label: 'Trebuchet MS', css: "'Trebuchet MS', Arial, sans-serif" },
+  { id: 'georgia', label: 'Georgia', css: 'Georgia, Times, serif' },
+  { id: 'times', label: 'Times New Roman', css: "'Times New Roman', Times, serif" },
+  { id: 'courier', label: 'Courier New', css: "'Courier New', Courier, monospace" },
+  { id: 'plex-mono', label: 'IBM Plex Mono', css: "'IBM Plex Mono', monospace" },
+]
+
+export function fontCss(id?: string | null) {
+  return FONT_OPTIONS.find((f) => f.id === id)?.css ?? FONT_OPTIONS[0].css
+}

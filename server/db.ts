@@ -31,7 +31,7 @@ db.exec(`
     UNIQUE(label)
   );
 
-  CREATE TABLE IF NOT EXISTS presets (
+    CREATE TABLE IF NOT EXISTS presets (
     id TEXT PRIMARY KEY,
     label TEXT NOT NULL,
     color TEXT NOT NULL,
@@ -43,7 +43,10 @@ db.exec(`
     subtitle TEXT,
     qr_payload TEXT,
     qr_data_url TEXT,
-    location TEXT
+    location TEXT,
+    font_family TEXT NOT NULL DEFAULT 'arial',
+    font_bold INTEGER NOT NULL DEFAULT 1,
+    font_italic INTEGER NOT NULL DEFAULT 0
   );
 
   CREATE TABLE IF NOT EXISTS batch_templates (
@@ -107,6 +110,18 @@ function migrate() {
       DROP TABLE presets;
       ALTER TABLE presets_mig RENAME TO presets;
     `)
+  }
+
+  const presetCols = db.prepare(`PRAGMA table_info(presets)`).all() as { name: string }[]
+  const presetNames = new Set(presetCols.map((c) => c.name))
+  if (!presetNames.has('font_family')) {
+    db.exec(`ALTER TABLE presets ADD COLUMN font_family TEXT NOT NULL DEFAULT 'arial'`)
+  }
+  if (!presetNames.has('font_bold')) {
+    db.exec(`ALTER TABLE presets ADD COLUMN font_bold INTEGER NOT NULL DEFAULT 1`)
+  }
+  if (!presetNames.has('font_italic')) {
+    db.exec(`ALTER TABLE presets ADD COLUMN font_italic INTEGER NOT NULL DEFAULT 0`)
   }
 }
 migrate()

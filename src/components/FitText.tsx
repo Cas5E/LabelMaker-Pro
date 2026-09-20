@@ -10,6 +10,7 @@ interface FitTextProps {
   minMm?: number
   maxLines?: number
   fontWeight?: number | string
+  fontStyle?: 'normal' | 'italic'
   color?: string
   letterSpacing?: string
   fontFamily?: string
@@ -65,6 +66,7 @@ export function FitText({
   minMm = 2.2,
   maxLines = 2,
   fontWeight = 900,
+  fontStyle = 'normal',
   color = '#0a0f1a',
   letterSpacing = 'normal',
   fontFamily = 'Arial, Helvetica, sans-serif',
@@ -98,6 +100,7 @@ export function FitText({
         style={{
           fontSize: `${sizeMm}mm`,
           fontWeight,
+          fontStyle,
           fontFamily,
           color,
           letterSpacing,
