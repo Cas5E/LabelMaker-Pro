@@ -1,7 +1,8 @@
 import { BinLabel } from './BinLabel'
 import { CableLabel } from './CableLabel'
 import { FlightCaseLabel } from './FlightCaseLabel'
-import { PAGE_H, PAGE_MARGIN, PAGE_W } from '../lib/layout'
+import { TextLabel } from './TextLabel'
+import { PAGE_MARGIN } from '../lib/layout'
 import type { PrintPageData } from '../lib/types'
 
 interface PrintSheetProps {
@@ -19,12 +20,13 @@ export function PrintSheet({
   companyWeb,
   showCutMarks,
 }: PrintSheetProps) {
+  const landscape = page.landscape
   return (
     <div
-      className="print-page"
+      className={`print-page${landscape ? ' print-page--landscape' : ''}`}
       style={{
-        width: `${PAGE_W}mm`,
-        height: `${PAGE_H}mm`,
+        width: `${page.pageW}mm`,
+        height: `${page.pageH}mm`,
         padding: `${PAGE_MARGIN}mm`,
         background: '#fff',
         boxSizing: 'border-box',
@@ -33,8 +35,8 @@ export function PrintSheet({
         breakAfter: 'page',
       }}
     >
-      {/* Snijlijnen alleen voor kabel/flightcase — bij bakken verstoren ze de labelranden in print */}
-      {showCutMarks && page.kind !== 'bin' && (
+      {/* Snijlijnen alleen voor kabel/flightcase — bij bakken/tekst verstoren ze de labelranden */}
+      {showCutMarks && page.kind !== 'bin' && page.kind !== 'text' && (
         <div
           aria-hidden
           style={{
@@ -76,6 +78,20 @@ export function PrintSheet({
         }}
       >
         {page.items.map((l, i) => {
+          if (l.kind === 'text') {
+            return (
+              <TextLabel
+                key={i}
+                title={l.label}
+                body={l.subtitle}
+                logoUrl={logoUrl}
+                companyTel={companyTel}
+                companyWeb={companyWeb}
+                widthMm={l.widthMm}
+                heightMm={l.heightMm}
+              />
+            )
+          }
           if (l.kind === 'bin') {
             return (
               <BinLabel

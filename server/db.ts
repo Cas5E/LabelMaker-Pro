@@ -39,7 +39,7 @@ db.exec(`
     sort_order INTEGER NOT NULL DEFAULT 0,
     width_mm REAL NOT NULL DEFAULT 50,
     height_mm REAL NOT NULL DEFAULT 35,
-    kind TEXT NOT NULL CHECK (kind IN ('cable', 'flightcase', 'bin')),
+    kind TEXT NOT NULL CHECK (kind IN ('cable', 'flightcase', 'bin', 'text')),
     subtitle TEXT,
     qr_payload TEXT,
     qr_data_url TEXT,
@@ -72,13 +72,41 @@ db.exec(`
 
 /** Migraties voor bestaande databases */
 function migrate() {
-  const cols = db.prepare(`PRAGMA table_info(bins)`).all() as { name: string }[]
-  const names = new Set(cols.map((c) => c.name))
-  if (!names.has('photo_data_url')) {
+  const binCols = db.prepare(`PRAGMA table_info(bins)`).all() as { name: string }[]
+  const binNames = new Set(binCols.map((c) => c.name))
+  if (!binNames.has('photo_data_url')) {
     db.exec(`ALTER TABLE bins ADD COLUMN photo_data_url TEXT`)
   }
-  if (!names.has('rentman_equipment_id')) {
+  if (!binNames.has('rentman_equipment_id')) {
     db.exec(`ALTER TABLE bins ADD COLUMN rentman_equipment_id INTEGER`)
+  }
+
+  // SQLite CHECK wijzigen: presets-tabel opnieuw met kind 'text'
+  const tableSql = db
+    .prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'presets'`)
+    .get() as { sql: string } | undefined
+  if (tableSql?.sql && !tableSql.sql.includes("'text'")) {
+    db.exec(`
+      CREATE TABLE presets_mig (
+        id TEXT PRIMARY KEY,
+        label TEXT NOT NULL,
+        color TEXT NOT NULL,
+        text_color TEXT NOT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        width_mm REAL NOT NULL DEFAULT 50,
+        height_mm REAL NOT NULL DEFAULT 35,
+        kind TEXT NOT NULL CHECK (kind IN ('cable', 'flightcase', 'bin', 'text')),
+        subtitle TEXT,
+        qr_payload TEXT,
+        qr_data_url TEXT,
+        location TEXT
+      );
+      INSERT INTO presets_mig
+        SELECT id, label, color, text_color, sort_order, width_mm, height_mm, kind, subtitle, qr_payload, qr_data_url, location
+        FROM presets;
+      DROP TABLE presets;
+      ALTER TABLE presets_mig RENAME TO presets;
+    `)
   }
 }
 migrate()

@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
-/** Scales an absolute 210×297mm sheet to fit the container width. */
-export function PreviewFrame({ children }: { children: ReactNode }) {
+/** Scales an absolute mm sheet to fit the container width. */
+export function PreviewFrame({
+  children,
+  pageW = 210,
+  pageH = 297,
+}: {
+  children: ReactNode
+  pageW?: number
+  pageH?: number
+}) {
   const hostRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
 
@@ -11,7 +19,7 @@ export function PreviewFrame({ children }: { children: ReactNode }) {
 
     const update = () => {
       const mmToPx = 96 / 25.4
-      const pagePx = 210 * mmToPx
+      const pagePx = pageW * mmToPx
       setScale(el.clientWidth / pagePx)
     }
 
@@ -19,7 +27,7 @@ export function PreviewFrame({ children }: { children: ReactNode }) {
     const ro = new ResizeObserver(update)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [])
+  }, [pageW])
 
   return (
     <div className="preview-frame">
@@ -27,7 +35,7 @@ export function PreviewFrame({ children }: { children: ReactNode }) {
         ref={hostRef}
         style={{
           width: '100%',
-          aspectRatio: '210 / 297',
+          aspectRatio: `${pageW} / ${pageH}`,
           position: 'relative',
           overflow: 'hidden',
         }}
@@ -37,8 +45,8 @@ export function PreviewFrame({ children }: { children: ReactNode }) {
             position: 'absolute',
             top: 0,
             left: 0,
-            width: '210mm',
-            height: '297mm',
+            width: `${pageW}mm`,
+            height: `${pageH}mm`,
             transform: `scale(${scale})`,
             transformOrigin: 'top left',
           }}

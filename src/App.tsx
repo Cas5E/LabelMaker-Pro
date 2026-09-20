@@ -15,6 +15,7 @@ import {
   Upload,
   Warehouse,
   Scissors,
+  Type,
   X,
 } from 'lucide-react'
 import { BinLabel, isBinTextOnly } from './components/BinLabel'
@@ -234,7 +235,13 @@ export default function App() {
     try {
       const preset = await api.createPreset({ kind })
       setState((s) => ({ ...s, presets: [...s.presets, preset] }))
-      notify(kind === 'bin' ? 'Bak-labeltype toegevoegd' : 'Labeltype toegevoegd')
+      notify(
+        kind === 'bin'
+          ? 'Bak-labeltype toegevoegd'
+          : kind === 'text'
+            ? 'Tekstlabel toegevoegd'
+            : 'Labeltype toegevoegd',
+      )
     } catch (e) {
       notify(e instanceof Error ? e.message : 'Labeltype toevoegen mislukt')
     }
@@ -568,6 +575,9 @@ export default function App() {
                   >
                     <Package className="h-3.5 w-3.5" /> Flightcase
                   </button>
+                  <button type="button" className="btn-ghost btn-sm" onClick={() => addPreset('text')}>
+                    <Type className="h-3.5 w-3.5" /> Tekst
+                  </button>
                 </div>
               </div>
               <div className="space-y-2">
@@ -830,20 +840,25 @@ export default function App() {
               </div>
             ) : (
               pages.map((page, pi) => {
-                const cap = capacityFor(page.widthMm, page.heightMm, page.gapMm)
+                const cap = capacityFor(page.widthMm, page.heightMm, page.gapMm, page.kind)
                 const kindLabel =
                   page.kind === 'bin'
                     ? 'Bak'
                     : page.kind === 'flightcase'
                       ? 'Flightcase'
-                      : 'Kabel'
+                      : page.kind === 'text'
+                        ? 'Tekst · A4 liggend'
+                        : 'Kabel'
                 return (
-                  <div key={pi} className="w-full max-w-[210mm]">
+                  <div
+                    key={pi}
+                    className={`w-full ${page.landscape ? 'max-w-[297mm]' : 'max-w-[210mm]'}`}
+                  >
                     <div className="mb-2 text-xs text-[var(--color-muted)]">
                       Vel {pi + 1} · {kindLabel} · {page.widthMm}×{page.heightMm} mm ·{' '}
                       {page.items.length}/{cap.perPage}
                     </div>
-                    <PreviewFrame>
+                    <PreviewFrame pageW={page.pageW} pageH={page.pageH}>
                       <PrintSheet
                         page={page}
                         logoUrl={state.profile.logoDataUrl}
@@ -1145,7 +1160,11 @@ function PresetRow({
     <div className="space-y-2.5 rounded-xl border border-[var(--color-line)] bg-[rgba(24,35,56,0.72)] p-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="rounded-md bg-[rgba(34,211,238,0.12)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[var(--color-accent)]">
-          {preset.kind === 'flightcase' ? 'Flightcase' : 'Kabel'}
+          {preset.kind === 'flightcase'
+            ? 'Flightcase'
+            : preset.kind === 'text'
+              ? 'Tekst'
+              : 'Kabel'}
         </span>
         {preset.kind === 'cable' && (
           <div
@@ -1160,45 +1179,68 @@ function PresetRow({
           </div>
         )}
         <input
-          className={`field ${preset.kind === 'flightcase' ? 'w-36' : 'w-20'}`}
+          className={`field ${
+            preset.kind === 'flightcase' || preset.kind === 'text' ? 'min-w-[12rem] flex-1' : 'w-20'
+          }`}
           value={label}
           onChange={(e) => setLabel(e.target.value)}
           onBlur={() => onUpdate({ label })}
-          maxLength={preset.kind === 'flightcase' ? 40 : 8}
+          maxLength={preset.kind === 'cable' ? 8 : 80}
+          placeholder={preset.kind === 'text' ? '1× Meetmicrofoon' : undefined}
         />
-        <div className="flex items-center gap-1 text-xs text-[var(--color-muted)]">
-          <input
-            type="number"
-            value={widthMm}
-            onChange={(e) => setWidthMm(e.target.value)}
-            onBlur={() => onUpdate({ widthMm: Number(widthMm) || 50 })}
-            className="field h-8 w-14 text-center"
-          />
-          ×
-          <input
-            type="number"
-            value={heightMm}
-            onChange={(e) => setHeightMm(e.target.value)}
-            onBlur={() => onUpdate({ heightMm: Number(heightMm) || 35 })}
-            className="field h-8 w-14 text-center"
-          />
-          mm
-        </div>
-        <select
-          className="field h-8 w-auto text-xs"
-          value=""
-          onChange={(e) => {
-            const sp = sizes[Number(e.target.value)]
-            if (sp) onUpdate({ widthMm: sp.w, heightMm: sp.h })
-          }}
-        >
-          <option value="">Formaat…</option>
-          {sizes.map((sp, i) => (
-            <option key={i} value={i}>
-              {sp.label}
-            </option>
-          ))}
-        </select>
+        {preset.kind !== 'text' && (
+          <>
+            <div className="flex items-center gap-1 text-xs text-[var(--color-muted)]">
+              <input
+                type="number"
+                value={widthMm}
+                onChange={(e) => setWidthMm(e.target.value)}
+                onBlur={() => onUpdate({ widthMm: Number(widthMm) || 50 })}
+                className="field h-8 w-14 text-center"
+              />
+              ×
+              <input
+                type="number"
+                value={heightMm}
+                onChange={(e) => setHeightMm(e.target.value)}
+                onBlur={() => onUpdate({ heightMm: Number(heightMm) || 35 })}
+                className="field h-8 w-14 text-center"
+              />
+              mm
+            </div>
+            <select
+              className="field h-8 w-auto text-xs"
+              value=""
+              onChange={(e) => {
+                const sp = sizes[Number(e.target.value)]
+                if (sp) onUpdate({ widthMm: sp.w, heightMm: sp.h })
+              }}
+            >
+              <option value="">Formaat…</option>
+              {sizes.map((sp, i) => (
+                <option key={i} value={i}>
+                  {sp.label}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
+        {preset.kind === 'text' && (
+          <select
+            className="field h-8 w-auto text-xs"
+            value={`${preset.widthMm}x${preset.heightMm}`}
+            onChange={(e) => {
+              const sp = sizes.find((s) => `${s.w}x${s.h}` === e.target.value)
+              if (sp) onUpdate({ widthMm: sp.w, heightMm: sp.h })
+            }}
+          >
+            {sizes.map((sp) => (
+              <option key={`${sp.w}x${sp.h}`} value={`${sp.w}x${sp.h}`}>
+                {sp.label}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {preset.kind === 'cable' && (
@@ -1229,13 +1271,17 @@ function PresetRow({
         </div>
       )}
 
-      {preset.kind === 'flightcase' && (
+      {(preset.kind === 'flightcase' || preset.kind === 'text') && (
         <input
           className="field"
           value={subtitle}
           onChange={(e) => setSubtitle(e.target.value)}
           onBlur={() => onUpdate({ subtitle })}
-          placeholder="Inhoud (bv. LIGHT, CABLES)"
+          placeholder={
+            preset.kind === 'text'
+              ? 'Bijv. met X accessoires / inhoud'
+              : 'Inhoud (bv. LIGHT, CABLES)'
+          }
         />
       )}
 

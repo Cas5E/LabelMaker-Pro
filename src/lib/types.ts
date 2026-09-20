@@ -1,4 +1,4 @@
-export type LabelKind = 'cable' | 'flightcase' | 'bin'
+export type LabelKind = 'cable' | 'flightcase' | 'bin' | 'text'
 
 export interface Preset {
   id: string
@@ -111,6 +111,9 @@ export interface PrintPageData {
   gapMm: number
   kind: LabelKind
   items: LabelItem[]
+  pageW: number
+  pageH: number
+  landscape: boolean
 }
 
 export interface SizePreset {

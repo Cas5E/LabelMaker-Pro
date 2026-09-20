@@ -337,7 +337,7 @@ app.delete('/api/meter-colors/:id', (c) => {
 
 app.post('/api/presets', async (c) => {
   const body = await c.req.json<{
-    kind?: 'cable' | 'flightcase' | 'bin'
+    kind?: 'cable' | 'flightcase' | 'bin' | 'text'
     label?: string
     color?: string
     textColor?: string
@@ -371,6 +371,13 @@ app.post('/api/presets', async (c) => {
     widthMm ??= 200
     heightMm ??= 70
     subtitle ??= ''
+  } else if (kind === 'text') {
+    label ??= '1× Meetmicrofoon'
+    color ??= '#0a2540'
+    textColor ??= '#0a0f1a'
+    widthMm ??= 140
+    heightMm ??= 198
+    subtitle ??= 'met accessoires'
   } else {
     label ??= '5M'
     const scheme = db

@@ -85,6 +85,11 @@ textarea {
     margin: 0;
   }
 
+  @page landscape-a4 {
+    size: A4 landscape;
+    margin: 0;
+  }
+
   html,
   body {
     background: #fff !important;
@@ -109,17 +114,23 @@ textarea {
     page-break-after: always;
   }
 
+  .print-page--landscape {
+    page: landscape-a4;
+  }
+
   .label-tile,
   .label-tile *,
   .bin-label,
   .bin-label-qr,
-  .bin-label-accent {
+  .bin-label-accent,
+  .text-label {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     color-adjust: exact !important;
   }
 
-  .bin-label {
+  .bin-label,
+  .text-label {
     outline: 0.35mm solid #0a0f1a !important;
     outline-offset: -0.35mm !important;
     border: none !important;
