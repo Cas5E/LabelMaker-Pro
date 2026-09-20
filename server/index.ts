@@ -357,8 +357,15 @@ app.post('/api/presets', async (c) => {
   let heightMm = body.heightMm
   let subtitle = body.subtitle ?? null
 
-  if (kind === 'flightcase') {
-    label ??= 'CASE 1'
+  if (kind === 'text') {
+    label ??= ''
+    color ??= '#000000'
+    textColor ??= '#000000'
+    widthMm ??= 100
+    heightMm ??= 25
+    subtitle ??= ''
+  } else if (kind === 'flightcase') {
+    label ??= ''
     color ??= '#0F172A'
     textColor ??= '#FFFFFF'
     widthMm ??= 200
@@ -371,18 +378,11 @@ app.post('/api/presets', async (c) => {
     widthMm ??= 200
     heightMm ??= 70
     subtitle ??= ''
-  } else if (kind === 'text') {
-    label ??= '1x Meetmicrofoon'
-    color ??= '#000000'
-    textColor ??= '#000000'
-    widthMm ??= 100
-    heightMm ??= 25
-    subtitle ??= ''
   } else {
-    label ??= '5M'
+    label ??= ''
     const scheme = db
       .prepare('SELECT color, text_color FROM meter_colors WHERE label = ? COLLATE NOCASE')
-      .get(label) as { color: string; text_color: string } | undefined
+      .get(label || '5M') as { color: string; text_color: string } | undefined
     color ??= scheme?.color ?? '#2FA9E0'
     textColor ??= scheme?.text_color ?? '#FFFFFF'
     widthMm ??= 75
