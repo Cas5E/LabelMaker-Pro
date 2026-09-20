@@ -19,7 +19,6 @@ import {
   X,
 } from 'lucide-react'
 import { BinLabel, isBinTextOnly } from './components/BinLabel'
-import { CableLabel } from './components/CableLabel'
 import { LoginScreen } from './components/LoginScreen'
 import { PreviewFrame } from './components/PreviewFrame'
 import { PrintSheet } from './components/PrintSheet'
