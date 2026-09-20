@@ -33,13 +33,15 @@ export function TextLabel({
   const titleText = (title || '').trim() || '—'
   const bodyText = hasBody ? body!.trim() : ''
 
-  // Titel krijgt het grootste deel; body een strakke tweede regel
-  const titleH = hasBody ? innerH * 0.62 : innerH
-  const bodyH = hasBody ? innerH * 0.34 : 0
-  const gap = hasBody ? innerH * 0.04 : 0
+  // Titel dominant; accessoires zichtbaar kleiner
+  const titleH = hasBody ? innerH * 0.68 : innerH
+  const bodyH = hasBody ? innerH * 0.26 : 0
+  const gap = hasBody ? innerH * 0.06 : 0
 
   const titleLines = pickLines(titleText, textW, titleH, 700)
   const bodyLines = hasBody ? pickLines(bodyText, textW, bodyH, 600) : 1
+  const titleMax = titleH / 1.05
+  const bodyMax = Math.min(bodyH / 1.05, titleMax * 0.55)
 
   return (
     <div
@@ -66,7 +68,7 @@ export function TextLabel({
         text={titleText}
         widthMm={textW}
         heightMm={titleH}
-        maxMm={titleH / 1.05}
+        maxMm={titleMax}
         minMm={1.6}
         maxLines={titleLines}
         fontWeight={700}
@@ -78,8 +80,8 @@ export function TextLabel({
           text={bodyText}
           widthMm={textW}
           heightMm={bodyH}
-          maxMm={bodyH / 1.05}
-          minMm={1.3}
+          maxMm={bodyMax}
+          minMm={1.2}
           maxLines={bodyLines}
           fontWeight={600}
           color="#000"
