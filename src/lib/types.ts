@@ -14,8 +14,10 @@ export interface Preset {
   qrDataUrl?: string | null
   location?: string | null
   fontFamily?: string
-  fontBold?: boolean
-  fontItalic?: boolean
+  titleBold?: boolean
+  titleItalic?: boolean
+  bodyBold?: boolean
+  bodyItalic?: boolean
 }
 
 export interface MeterColor {
@@ -105,8 +107,10 @@ export interface LabelItem {
   photoDataUrl?: string | null
   location?: string | null
   fontFamily?: string
-  fontBold?: boolean
-  fontItalic?: boolean
+  titleBold?: boolean
+  titleItalic?: boolean
+  bodyBold?: boolean
+  bodyItalic?: boolean
 }
 
 export interface PrintPageData {
@@ -122,6 +126,9 @@ export interface PrintPageData {
   landscape: boolean
   /** Verschillende labelmaten op één vel (flex-wrap i.p.v. grid) */
   mixed?: boolean
+  /** Uniforme titel-/body-grootte voor tekstlabels op dit vel */
+  sharedTitleMm?: number
+  sharedBodyMm?: number
 }
 
 export interface SizePreset {

@@ -23,7 +23,7 @@ interface FitTextProps {
  * Berekent font-size zodat tekst past — krimpt onder minMm als dat nodig is.
  * Bold Arial ≈ 0.55–0.62em per teken afhankelijk van gewicht.
  */
-function fitFontMm(
+export function computeFitFontMm(
   text: string,
   widthMm: number,
   heightMm: number,
@@ -37,24 +37,19 @@ function fitFontMm(
 
   const weight = typeof fontWeight === 'number' ? fontWeight : parseInt(String(fontWeight), 10) || 700
   const lineHeight = 1.08
-  // Zwaarder = breder
   const charRatio = weight >= 800 ? 0.62 : weight >= 600 ? 0.56 : 0.5
   const chars = t.length
 
   const byHeight = heightMm / (maxLines * lineHeight)
   const byWidth = (widthMm * maxLines) / (chars * charRatio)
   const longestWord = Math.max(...t.split(/\s+/).map((w) => w.length), 1)
-  // Bij meerdere regels: woorden mogen wrappen — byWord niet te streng op hele string
   const byWord =
-    maxLines === 1 ? widthMm / (longestWord * charRatio) : widthMm / (Math.min(longestWord, chars) * charRatio * 0.85)
+    maxLines === 1
+      ? widthMm / (longestWord * charRatio)
+      : widthMm / (Math.min(longestWord, chars) * charRatio * 0.85)
 
   let size = Math.min(maxMm, byHeight, byWidth, byWord)
-
-  // Soft min: respecteer minMm alleen als tekst dan nog past
-  if (size < minMm) {
-    size = Math.max(1.0, size)
-  }
-
+  if (size < minMm) size = Math.max(1.0, size)
   return Number(size.toFixed(2))
 }
 
@@ -73,11 +68,13 @@ export function FitText({
   className,
   style,
   align = 'center',
-}: FitTextProps) {
-  const sizeMm = useMemo(
-    () => fitFontMm(text, widthMm, heightMm, maxMm, minMm, maxLines, fontWeight),
-    [text, widthMm, heightMm, maxMm, minMm, maxLines, fontWeight],
-  )
+  /** Vaste mm-grootte (gedeeld over labels op één vel) */
+  forcedSizeMm,
+}: FitTextProps & { forcedSizeMm?: number }) {
+  const sizeMm = useMemo(() => {
+    if (forcedSizeMm != null && forcedSizeMm > 0) return forcedSizeMm
+    return computeFitFontMm(text, widthMm, heightMm, maxMm, minMm, maxLines, fontWeight)
+  }, [text, widthMm, heightMm, maxMm, minMm, maxLines, fontWeight, forcedSizeMm])
 
   const singleLine = maxLines === 1
 

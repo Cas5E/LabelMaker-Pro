@@ -1,3 +1,4 @@
+import { sharedTextFontSizes } from '../components/TextLabel'
 import type { LabelItem, LabelKind, PrintPageData } from './types'
 
 /** A4 portrait (standaard) */
@@ -71,7 +72,7 @@ function packOntoPages(
       flushPage()
     }
 
-    page.push(item)
+    page.push({ ...item, widthMm: w, heightMm: h })
     shelfH = Math.max(shelfH, h)
     x += w + gapMm
   }
@@ -79,10 +80,15 @@ function packOntoPages(
   return pages
 }
 
-function paginateUniform(
-  arr: LabelItem[],
-  gapMm: number,
-): PrintPageData[] {
+/** Uniforme breedte/hoogte per vel zodat rijen strak uitlijnen. */
+function normalizeTextPage(items: LabelItem[], usableW: number): LabelItem[] {
+  if (!items.length) return items
+  const widthMm = Math.min(usableW, Math.max(...items.map((i) => i.widthMm)))
+  const heightMm = Math.max(...items.map((i) => i.heightMm))
+  return items.map((i) => ({ ...i, widthMm, heightMm }))
+}
+
+function paginateUniform(arr: LabelItem[], gapMm: number): PrintPageData[] {
   const { widthMm, heightMm, kind } = arr[0]
   const page = pageSizeFor(kind)
   const cols = Math.max(1, Math.floor((page.usableW + gapMm) / (widthMm + gapMm)))
@@ -113,25 +119,43 @@ export function paginateLabels(labels: LabelItem[], gapMm: number): PrintPageDat
 
   const result: PrintPageData[] = []
 
-  // Tekstlabels: alle maten samen packen op A4 liggend
+  // Tekstlabels: packen op A4 liggend, daarna uniforme maat + gedeelde lettergrootte per vel
   if (textItems.length) {
     const page = pageSizeFor('text')
-    const packed = packOntoPages(textItems, page.usableW, page.usableH, gapMm)
-    for (const items of packed) {
-      const maxW = Math.max(...items.map((i) => i.widthMm))
-      const maxH = Math.max(...items.map((i) => i.heightMm))
+    // Eerst groeperen op originele maat zodat gelijke presets bij elkaar blijven
+    const bySize = new Map<string, LabelItem[]>()
+    for (const item of textItems) {
+      const key = `${item.widthMm}x${item.heightMm}`
+      const arr = bySize.get(key) ?? []
+      arr.push(item)
+      bySize.set(key, arr)
+    }
+    const ordered = [...bySize.values()].flat()
+    const packed = packOntoPages(ordered, page.usableW, page.usableH, gapMm)
+
+    for (const raw of packed) {
+      const items = normalizeTextPage(raw, page.usableW)
+      const shared = sharedTextFontSizes(items)
+      const widthMm = items[0].widthMm
+      const heightMm = items[0].heightMm
+      const cols = Math.max(1, Math.floor((page.usableW + gapMm) / (widthMm + gapMm)))
+      const rows = Math.max(1, Math.floor((page.usableH + gapMm) / (heightMm + gapMm)))
+      const useGrid = items.every((i) => i.widthMm === widthMm && i.heightMm === heightMm)
+
       result.push({
-        widthMm: maxW,
-        heightMm: maxH,
-        cols: 1,
-        rows: 1,
+        widthMm,
+        heightMm,
+        cols: useGrid ? cols : 1,
+        rows: useGrid ? rows : 1,
         gapMm,
         kind: 'text',
         items,
         pageW: page.pageW,
         pageH: page.pageH,
         landscape: true,
-        mixed: true,
+        mixed: !useGrid,
+        sharedTitleMm: shared.titleMm,
+        sharedBodyMm: shared.bodyMm,
       })
     }
   }

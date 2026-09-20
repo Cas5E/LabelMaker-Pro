@@ -155,8 +155,10 @@ export default function App() {
           qrDataUrl: p.qrDataUrl,
           location: p.location,
           fontFamily: p.fontFamily,
-          fontBold: p.fontBold,
-          fontItalic: p.fontItalic,
+          titleBold: p.titleBold,
+          titleItalic: p.titleItalic,
+          bodyBold: p.bodyBold,
+          bodyItalic: p.bodyItalic,
         })
       }
     }
@@ -1289,19 +1291,45 @@ function PresetRow({
                 </option>
               ))}
             </select>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="w-full text-[11px] font-medium text-[var(--color-muted)] sm:w-auto sm:min-w-[5.5rem]">
+              Hoofdlijn
+            </span>
             <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-[var(--color-line)] px-2.5 py-1.5 text-xs font-semibold">
               <input
                 type="checkbox"
-                checked={preset.fontBold !== false}
-                onChange={(e) => onUpdate({ fontBold: e.target.checked })}
+                checked={preset.titleBold !== false}
+                onChange={(e) => onUpdate({ titleBold: e.target.checked })}
               />
               <span style={{ fontWeight: 700 }}>Bold</span>
             </label>
             <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-[var(--color-line)] px-2.5 py-1.5 text-xs font-semibold">
               <input
                 type="checkbox"
-                checked={Boolean(preset.fontItalic)}
-                onChange={(e) => onUpdate({ fontItalic: e.target.checked })}
+                checked={Boolean(preset.titleItalic)}
+                onChange={(e) => onUpdate({ titleItalic: e.target.checked })}
+              />
+              <span style={{ fontStyle: 'italic' }}>Italic</span>
+            </label>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="w-full text-[11px] font-medium text-[var(--color-muted)] sm:w-auto sm:min-w-[5.5rem]">
+              Accessoires
+            </span>
+            <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-[var(--color-line)] px-2.5 py-1.5 text-xs font-semibold">
+              <input
+                type="checkbox"
+                checked={Boolean(preset.bodyBold)}
+                onChange={(e) => onUpdate({ bodyBold: e.target.checked })}
+              />
+              <span style={{ fontWeight: 700 }}>Bold</span>
+            </label>
+            <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-[var(--color-line)] px-2.5 py-1.5 text-xs font-semibold">
+              <input
+                type="checkbox"
+                checked={Boolean(preset.bodyItalic)}
+                onChange={(e) => onUpdate({ bodyItalic: e.target.checked })}
               />
               <span style={{ fontStyle: 'italic' }}>Italic</span>
             </label>

@@ -46,7 +46,11 @@ db.exec(`
     location TEXT,
     font_family TEXT NOT NULL DEFAULT 'arial',
     font_bold INTEGER NOT NULL DEFAULT 1,
-    font_italic INTEGER NOT NULL DEFAULT 0
+    font_italic INTEGER NOT NULL DEFAULT 0,
+    title_bold INTEGER NOT NULL DEFAULT 1,
+    title_italic INTEGER NOT NULL DEFAULT 0,
+    body_bold INTEGER NOT NULL DEFAULT 0,
+    body_italic INTEGER NOT NULL DEFAULT 0
   );
 
   CREATE TABLE IF NOT EXISTS batch_templates (
@@ -122,6 +126,21 @@ function migrate() {
   }
   if (!presetNames.has('font_italic')) {
     db.exec(`ALTER TABLE presets ADD COLUMN font_italic INTEGER NOT NULL DEFAULT 0`)
+  }
+  if (!presetNames.has('title_bold')) {
+    db.exec(`ALTER TABLE presets ADD COLUMN title_bold INTEGER NOT NULL DEFAULT 1`)
+    // Migreer oude globaal-bold naar titel
+    db.exec(`UPDATE presets SET title_bold = COALESCE(font_bold, 1)`)
+  }
+  if (!presetNames.has('title_italic')) {
+    db.exec(`ALTER TABLE presets ADD COLUMN title_italic INTEGER NOT NULL DEFAULT 0`)
+    db.exec(`UPDATE presets SET title_italic = COALESCE(font_italic, 0)`)
+  }
+  if (!presetNames.has('body_bold')) {
+    db.exec(`ALTER TABLE presets ADD COLUMN body_bold INTEGER NOT NULL DEFAULT 0`)
+  }
+  if (!presetNames.has('body_italic')) {
+    db.exec(`ALTER TABLE presets ADD COLUMN body_italic INTEGER NOT NULL DEFAULT 0`)
   }
 }
 migrate()

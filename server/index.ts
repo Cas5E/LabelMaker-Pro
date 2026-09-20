@@ -122,7 +122,14 @@ function mapMeterColor(row: Row) {
   }
 }
 
+function asBool(v: unknown, fallback: boolean) {
+  if (v === undefined || v === null) return fallback
+  return Boolean(v)
+}
+
 function mapPreset(row: Row) {
+  const legacyBold = asBool(row.font_bold, true)
+  const legacyItalic = asBool(row.font_italic, false)
   return {
     id: String(row.id),
     label: String(row.label),
@@ -137,8 +144,10 @@ function mapPreset(row: Row) {
     qrDataUrl: (row.qr_data_url as string | null) ?? null,
     location: (row.location as string | null) ?? null,
     fontFamily: String(row.font_family ?? 'arial'),
-    fontBold: row.font_bold === undefined || row.font_bold === null ? true : Boolean(row.font_bold),
-    fontItalic: Boolean(row.font_italic),
+    titleBold: asBool(row.title_bold, legacyBold),
+    titleItalic: asBool(row.title_italic, legacyItalic),
+    bodyBold: asBool(row.body_bold, false),
+    bodyItalic: asBool(row.body_italic, false),
   }
 }
 
@@ -364,8 +373,8 @@ app.post('/api/presets', async (c) => {
     label ??= ''
     color ??= '#000000'
     textColor ??= '#000000'
-    widthMm ??= 100
-    heightMm ??= 25
+    widthMm ??= 270
+    heightMm ??= 32
     subtitle ??= ''
   } else if (kind === 'flightcase') {
     label ??= ''
@@ -393,12 +402,11 @@ app.post('/api/presets', async (c) => {
   }
 
   const id = uid()
-  const fontFamily = kind === 'text' ? 'arial' : 'arial'
-  const fontBold = kind === 'text' ? 1 : 1
-  const fontItalic = 0
   db.prepare(
-    `INSERT INTO presets (id, label, color, text_color, sort_order, width_mm, height_mm, kind, subtitle, font_family, font_bold, font_italic)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO presets (
+       id, label, color, text_color, sort_order, width_mm, height_mm, kind, subtitle,
+       font_family, font_bold, font_italic, title_bold, title_italic, body_bold, body_italic
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     label,
@@ -409,9 +417,13 @@ app.post('/api/presets', async (c) => {
     heightMm,
     kind,
     subtitle,
-    fontFamily,
-    fontBold,
-    fontItalic,
+    'arial',
+    1,
+    0,
+    1, // title bold
+    0, // title italic
+    0, // body bold
+    0, // body italic
   )
 
   return c.json(mapPreset(db.prepare('SELECT * FROM presets WHERE id = ?').get(id) as Row), 201)
@@ -438,12 +450,36 @@ app.patch('/api/presets/:id', async (c) => {
     }
   }
 
+  const toInt = (v: unknown, fallback: number) => {
+    if (v === undefined) return fallback
+    return v ? 1 : 0
+  }
+  const curTitleBold =
+    cur.title_bold !== undefined && cur.title_bold !== null
+      ? cur.title_bold
+        ? 1
+        : 0
+      : cur.font_bold === undefined || cur.font_bold === null
+        ? 1
+        : cur.font_bold
+          ? 1
+          : 0
+  const curTitleItalic =
+    cur.title_italic !== undefined && cur.title_italic !== null
+      ? cur.title_italic
+        ? 1
+        : 0
+      : cur.font_italic
+        ? 1
+        : 0
+
   db.prepare(
     `UPDATE presets SET
       label = ?, color = ?, text_color = ?,
       width_mm = ?, height_mm = ?, subtitle = ?,
       qr_payload = ?, qr_data_url = ?, location = ?,
-      font_family = ?, font_bold = ?, font_italic = ?
+      font_family = ?, font_bold = ?, font_italic = ?,
+      title_bold = ?, title_italic = ?, body_bold = ?, body_italic = ?
      WHERE id = ?`,
   ).run(
     label,
@@ -456,20 +492,19 @@ app.patch('/api/presets/:id', async (c) => {
     body.qrDataUrl !== undefined ? body.qrDataUrl : cur.qr_data_url,
     body.location !== undefined ? body.location : cur.location,
     body.fontFamily !== undefined ? String(body.fontFamily) : (cur.font_family ?? 'arial'),
-    body.fontBold !== undefined
-      ? body.fontBold
+    // legacy sync = title
+    body.titleBold !== undefined ? toInt(body.titleBold, 1) : curTitleBold,
+    body.titleItalic !== undefined ? toInt(body.titleItalic, 0) : curTitleItalic,
+    body.titleBold !== undefined ? toInt(body.titleBold, 1) : curTitleBold,
+    body.titleItalic !== undefined ? toInt(body.titleItalic, 0) : curTitleItalic,
+    body.bodyBold !== undefined
+      ? toInt(body.bodyBold, 0)
+      : cur.body_bold
         ? 1
-        : 0
-      : cur.font_bold === undefined || cur.font_bold === null
-        ? 1
-        : cur.font_bold
-          ? 1
-          : 0,
-    body.fontItalic !== undefined
-      ? body.fontItalic
-        ? 1
-        : 0
-      : cur.font_italic
+        : 0,
+    body.bodyItalic !== undefined
+      ? toInt(body.bodyItalic, 0)
+      : cur.body_italic
         ? 1
         : 0,
     id,

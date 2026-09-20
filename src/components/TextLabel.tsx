@@ -1,56 +1,109 @@
-import { FitText } from './FitText'
+import { computeFitFontMm, FitText } from './FitText'
 import { fontCss } from '../lib/defaults'
 
-/** Simpel tekstlabel: dunne zwarte rand, typografie kiesbaar. */
+/** Simpel tekstlabel: dunne zwarte rand, typografie per regel. */
 export interface TextLabelProps {
   title: string
   body?: string | null
   widthMm?: number
   heightMm?: number
   fontFamily?: string
-  fontBold?: boolean
-  fontItalic?: boolean
+  titleBold?: boolean
+  titleItalic?: boolean
+  bodyBold?: boolean
+  bodyItalic?: boolean
+  /** Gedeelde grootte over alle labels op hetzelfde vel */
+  forcedTitleMm?: number
+  forcedBodyMm?: number
 }
 
-/** Schat of 1 regel past met bruikbare fontgrootte; anders 2 regels. */
+export function textLabelInner(widthMm: number, heightMm: number, hasBody: boolean) {
+  const padX = Math.max(2.5, widthMm * 0.02)
+  const padY = Math.max(1.8, heightMm * 0.12)
+  const textW = widthMm - padX * 2
+  const innerH = heightMm - padY * 2
+  const titleH = hasBody ? innerH * 0.62 : innerH
+  const bodyH = hasBody ? innerH * 0.28 : 0
+  const gap = hasBody ? innerH * 0.1 : 0
+  return { padX, padY, textW, titleH, bodyH, gap, titleMax: titleH / 1.08, bodyMax: bodyH / 1.08 }
+}
+
 function pickLines(text: string, widthMm: number, heightMm: number, weight: number) {
   const charRatio = weight >= 800 ? 0.62 : weight >= 600 ? 0.56 : 0.5
   const oneLine = widthMm / (Math.max(text.length, 1) * charRatio)
   const byHeight = heightMm / 1.08
   const oneSize = Math.min(oneLine, byHeight)
-  if (oneSize >= heightMm * 0.32 && oneSize >= 2.2) return 1
+  if (oneSize >= heightMm * 0.36 && oneSize >= 2.4) return 1
   return 2
+}
+
+/** Kleinste titel-/body-grootte die voor alle items past (uniforme look). */
+export function sharedTextFontSizes(
+  items: {
+    label: string
+    subtitle?: string | null
+    widthMm: number
+    heightMm: number
+    titleBold?: boolean
+    bodyBold?: boolean
+  }[],
+) {
+  let titleMm = Infinity
+  let bodyMm = Infinity
+  for (const item of items) {
+    const hasBody = Boolean(item.subtitle?.trim())
+    const m = textLabelInner(item.widthMm, item.heightMm, hasBody)
+    const tw = item.titleBold !== false ? 700 : 400
+    const bw = item.bodyBold ? 600 : 400
+    const title = (item.label || '').trim() || '—'
+    const titleLines = pickLines(title, m.textW, m.titleH, tw)
+    // Cap max zodat korte teksten niet “uit hun dak” gaan
+    const titleCap = Math.min(m.titleMax, item.heightMm * 0.42, 7.5)
+    titleMm = Math.min(
+      titleMm,
+      computeFitFontMm(title, m.textW, m.titleH, titleCap, 1.6, titleLines, tw),
+    )
+    if (hasBody) {
+      const body = item.subtitle!.trim()
+      const bodyLines = pickLines(body, m.textW, m.bodyH, bw)
+      const bodyCap = Math.min(m.bodyMax, titleCap * 0.55, 4.2)
+      bodyMm = Math.min(
+        bodyMm,
+        computeFitFontMm(body, m.textW, m.bodyH, bodyCap, 1.2, bodyLines, bw),
+      )
+    }
+  }
+  return {
+    titleMm: Number.isFinite(titleMm) ? titleMm : 5,
+    bodyMm: Number.isFinite(bodyMm) ? bodyMm : 2.8,
+  }
 }
 
 export function TextLabel({
   title,
   body,
-  widthMm = 100,
-  heightMm = 25,
+  widthMm = 270,
+  heightMm = 32,
   fontFamily = 'arial',
-  fontBold = true,
-  fontItalic = false,
+  titleBold = true,
+  titleItalic = false,
+  bodyBold = false,
+  bodyItalic = false,
+  forcedTitleMm,
+  forcedBodyMm,
 }: TextLabelProps) {
-  const padX = Math.max(1.2, widthMm * 0.025)
-  const padY = Math.max(0.8, heightMm * 0.08)
-  const textW = widthMm - padX * 2
-  const innerH = heightMm - padY * 2
   const hasBody = Boolean(body?.trim())
   const titleText = (title || '').trim() || '—'
   const bodyText = hasBody ? body!.trim() : ''
   const family = fontCss(fontFamily)
-  const titleWeight = fontBold ? 700 : 400
-  const bodyWeight = fontBold ? 600 : 400
-  const style = fontItalic ? ('italic' as const) : ('normal' as const)
+  const titleWeight = titleBold ? 700 : 400
+  const bodyWeight = bodyBold ? 600 : 400
+  const m = textLabelInner(widthMm, heightMm, hasBody)
 
-  const titleH = hasBody ? innerH * 0.68 : innerH
-  const bodyH = hasBody ? innerH * 0.26 : 0
-  const gap = hasBody ? innerH * 0.06 : 0
-
-  const titleLines = pickLines(titleText, textW, titleH, titleWeight)
-  const bodyLines = hasBody ? pickLines(bodyText, textW, bodyH, bodyWeight) : 1
-  const titleMax = titleH / 1.05
-  const bodyMax = Math.min(bodyH / 1.05, titleMax * 0.55)
+  const titleLines = pickLines(titleText, m.textW, m.titleH, titleWeight)
+  const bodyLines = hasBody ? pickLines(bodyText, m.textW, m.bodyH, bodyWeight) : 1
+  const titleCap = Math.min(m.titleMax, heightMm * 0.42, 7.5)
+  const bodyCap = Math.min(m.bodyMax, titleCap * 0.55, 4.2)
 
   return (
     <div
@@ -67,38 +120,40 @@ export function TextLabel({
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
-        gap: `${gap}mm`,
-        padding: `${padY}mm ${padX}mm`,
+        gap: `${m.gap}mm`,
+        padding: `${m.padY}mm ${m.padX}mm`,
         WebkitPrintColorAdjust: 'exact',
         printColorAdjust: 'exact',
       }}
     >
       <FitText
         text={titleText}
-        widthMm={textW}
-        heightMm={titleH}
-        maxMm={titleMax}
+        widthMm={m.textW}
+        heightMm={m.titleH}
+        maxMm={titleCap}
         minMm={1.6}
         maxLines={titleLines}
         fontWeight={titleWeight}
-        fontStyle={style}
+        fontStyle={titleItalic ? 'italic' : 'normal'}
         fontFamily={family}
         color="#000"
         align="left"
+        forcedSizeMm={forcedTitleMm}
       />
       {hasBody ? (
         <FitText
           text={bodyText}
-          widthMm={textW}
-          heightMm={bodyH}
-          maxMm={bodyMax}
+          widthMm={m.textW}
+          heightMm={m.bodyH}
+          maxMm={bodyCap}
           minMm={1.2}
           maxLines={bodyLines}
           fontWeight={bodyWeight}
-          fontStyle={style}
+          fontStyle={bodyItalic ? 'italic' : 'normal'}
           fontFamily={family}
           color="#000"
           align="left"
+          forcedSizeMm={forcedBodyMm}
         />
       ) : null}
     </div>
