@@ -43,15 +43,14 @@ function fitFontMm(
   const byHeight = heightMm / (maxLines * lineHeight)
   const byWidth = (widthMm * maxLines) / (chars * charRatio)
   const longestWord = Math.max(...t.split(/\s+/).map((w) => w.length), 1)
-  const byWord = widthMm / (longestWord * charRatio)
+  // Bij meerdere regels: woorden mogen wrappen — byWord niet te streng op hele string
+  const byWord =
+    maxLines === 1 ? widthMm / (longestWord * charRatio) : widthMm / (Math.min(longestWord, chars) * charRatio * 0.85)
 
   let size = Math.min(maxMm, byHeight, byWidth, byWord)
 
   // Soft min: respecteer minMm alleen als tekst dan nog past
-  if (size >= minMm) {
-    size = Math.max(minMm, size)
-  } else {
-    // Liever kleiner dan overflow/afkappen
+  if (size < minMm) {
     size = Math.max(1.0, size)
   }
 
