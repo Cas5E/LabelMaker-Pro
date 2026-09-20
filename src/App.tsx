@@ -815,28 +815,10 @@ export default function App() {
           <div className="preview-stage">
             {pages.length === 0 ? (
               <div className="panel w-full max-w-[210mm] px-6 py-12 text-center text-[var(--color-muted)]">
-                Stel aantallen in of maak een bak aan.
-                <div className="mx-auto mt-8 flex flex-wrap justify-center gap-3 opacity-90">
-                  <CableLabel
-                    label="5M"
-                    color="#2FA9E0"
-                    textColor="#FFFFFF"
-                    logoUrl={state.profile.logoDataUrl}
-                  />
-                  <div className="w-full max-w-[200mm] overflow-hidden rounded-lg border border-[var(--color-line)] bg-white p-1 text-left">
-                    <div className="origin-top-left scale-[0.72]" style={{ width: '139%' }}>
-                      <BinLabel
-                        code="BAK-001"
-                        name="DMX adapters"
-                        contents="5-pin / 3-pin"
-                        location="Stelling A2"
-                        logoUrl={state.profile.logoDataUrl}
-                        qrDataUrl={null}
-                        photoDataUrl={null}
-                      />
-                    </div>
-                  </div>
-                </div>
+                Nog niets geselecteerd.
+                <p className="mt-2 text-sm">
+                  Stel aantallen in bij labels of bakken om hier een printvoorbeeld te zien.
+                </p>
               </div>
             ) : (
               pages.map((page, pi) => {
