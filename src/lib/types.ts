@@ -114,6 +114,8 @@ export interface PrintPageData {
   pageW: number
   pageH: number
   landscape: boolean
+  /** Verschillende labelmaten op één vel (flex-wrap i.p.v. grid) */
+  mixed?: boolean
 }
 
 export interface SizePreset {

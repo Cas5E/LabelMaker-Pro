@@ -836,8 +836,10 @@ export default function App() {
                     className={`w-full ${page.landscape ? 'max-w-[297mm]' : 'max-w-[210mm]'}`}
                   >
                     <div className="mb-2 text-xs text-[var(--color-muted)]">
-                      Vel {pi + 1} · {kindLabel} · {page.widthMm}×{page.heightMm} mm ·{' '}
-                      {page.items.length}/{cap.perPage}
+                      Vel {pi + 1} · {kindLabel}
+                      {page.mixed
+                        ? ` · ${page.items.length} label${page.items.length === 1 ? '' : 's'} op dit vel`
+                        : ` · ${page.widthMm}×${page.heightMm} mm · ${page.items.length}/${cap.perPage}`}
                     </div>
                     <PreviewFrame pageW={page.pageW} pageH={page.pageH}>
                       <PrintSheet

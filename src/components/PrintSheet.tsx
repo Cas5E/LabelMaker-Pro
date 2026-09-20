@@ -64,18 +64,32 @@ export function PrintSheet({
         />
       )}
       <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(${page.cols}, ${page.widthMm}mm)`,
-          gridTemplateRows: `repeat(${page.rows}, ${page.heightMm}mm)`,
-          gap: `${page.gapMm}mm`,
-          justifyContent: 'center',
-          alignContent: 'start',
-          width: '100%',
-          height: '100%',
-          position: 'relative',
-          zIndex: 1,
-        }}
+        style={
+          page.mixed
+            ? {
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignContent: 'flex-start',
+                alignItems: 'flex-start',
+                gap: `${page.gapMm}mm`,
+                width: '100%',
+                height: '100%',
+                position: 'relative',
+                zIndex: 1,
+              }
+            : {
+                display: 'grid',
+                gridTemplateColumns: `repeat(${page.cols}, ${page.widthMm}mm)`,
+                gridTemplateRows: `repeat(${page.rows}, ${page.heightMm}mm)`,
+                gap: `${page.gapMm}mm`,
+                justifyContent: 'center',
+                alignContent: 'start',
+                width: '100%',
+                height: '100%',
+                position: 'relative',
+                zIndex: 1,
+              }
+        }
       >
         {page.items.map((l, i) => {
           if (l.kind === 'text') {
