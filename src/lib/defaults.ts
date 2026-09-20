@@ -9,6 +9,7 @@ export const SIZE_PRESETS: SizePreset[] = [
   { label: 'Flightcase half A4 (200×140)', w: 200, h: 140, kinds: ['flightcase'] },
   { label: 'Flightcase / bak kwart A4 (200×70)', w: 200, h: 70, kinds: ['flightcase', 'bin'] },
   { label: 'Bak tekst 55×15 mm (alleen tekst)', w: 55, h: 15, kinds: ['bin'] },
-  { label: 'Tekst A4 liggend (1 per vel)', w: 285, h: 198, kinds: ['text'] },
-  { label: 'Tekst half A4 liggend (2 per vel)', w: 140, h: 198, kinds: ['text'] },
+  { label: 'Tekst strip 100×25 (standaard)', w: 100, h: 25, kinds: ['text'] },
+  { label: 'Tekst breed 140×30', w: 140, h: 30, kinds: ['text'] },
+  { label: 'Tekst groot 200×40', w: 200, h: 40, kinds: ['text'] },
 ]

@@ -1167,7 +1167,7 @@ function PresetRow({
           onChange={(e) => setLabel(e.target.value)}
           onBlur={() => onUpdate({ label })}
           maxLength={preset.kind === 'cable' ? 8 : 80}
-          placeholder={preset.kind === 'text' ? '1× Meetmicrofoon' : undefined}
+          placeholder={preset.kind === 'text' ? '1x Meetmicrofoon' : undefined}
         />
         {preset.kind !== 'text' && (
           <>
@@ -1252,17 +1252,23 @@ function PresetRow({
         </div>
       )}
 
-      {(preset.kind === 'flightcase' || preset.kind === 'text') && (
+      {preset.kind === 'flightcase' && (
         <input
           className="field"
           value={subtitle}
           onChange={(e) => setSubtitle(e.target.value)}
           onBlur={() => onUpdate({ subtitle })}
-          placeholder={
-            preset.kind === 'text'
-              ? 'Bijv. met X accessoires / inhoud'
-              : 'Inhoud (bv. LIGHT, CABLES)'
-          }
+          placeholder="Inhoud (bv. LIGHT, CABLES)"
+        />
+      )}
+
+      {preset.kind === 'text' && (
+        <input
+          className="field"
+          value={subtitle}
+          onChange={(e) => setSubtitle(e.target.value)}
+          onBlur={() => onUpdate({ subtitle })}
+          placeholder="Optioneel: met accessoires (leeg = alleen titel)"
         />
       )}
 

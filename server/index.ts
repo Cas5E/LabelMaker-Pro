@@ -372,12 +372,12 @@ app.post('/api/presets', async (c) => {
     heightMm ??= 70
     subtitle ??= ''
   } else if (kind === 'text') {
-    label ??= '1× Meetmicrofoon'
-    color ??= '#0a2540'
-    textColor ??= '#0a0f1a'
-    widthMm ??= 140
-    heightMm ??= 198
-    subtitle ??= 'met accessoires'
+    label ??= '1x Meetmicrofoon'
+    color ??= '#000000'
+    textColor ??= '#000000'
+    widthMm ??= 100
+    heightMm ??= 25
+    subtitle ??= ''
   } else {
     label ??= '5M'
     const scheme = db

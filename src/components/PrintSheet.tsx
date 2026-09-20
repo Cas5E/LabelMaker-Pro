@@ -84,9 +84,6 @@ export function PrintSheet({
                 key={i}
                 title={l.label}
                 body={l.subtitle}
-                logoUrl={logoUrl}
-                companyTel={companyTel}
-                companyWeb={companyWeb}
                 widthMm={l.widthMm}
                 heightMm={l.heightMm}
               />

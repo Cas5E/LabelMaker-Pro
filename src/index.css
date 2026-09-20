@@ -129,11 +129,15 @@ textarea {
     color-adjust: exact !important;
   }
 
-  .bin-label,
-  .text-label {
+  .bin-label {
     outline: 0.35mm solid #0a0f1a !important;
     outline-offset: -0.35mm !important;
     border: none !important;
+  }
+
+  .text-label {
+    outline: none !important;
+    border: 0.35mm solid #000 !important;
   }
 
   .bin-label-accent {
